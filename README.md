@@ -2,7 +2,7 @@
 
 > Declarative document management using the Johnny Decimal system, powered by Nix
 
-Johnny-Mnemonix is a Home Manager module that brings the power of declarative configuration to your document management, implementing the Johnny Decimal system in a Nix-native way. It provides a structured, reproducible approach to organizing your `$HOME/Documents` directory (aka your `$HOMEOFFICE`).
+Johnny-Mnemonix is a Home Manager module that brings the power of declarative configuration to your document management, implementing the [Johnny Decimal](https://johnnydecimal.com/) system in a Nix-native way. It provides a structured, reproducible approach to organizing your `$HOME/Documents` directory (aka your `$HOMEOFFICE`).
 
 ## Features
 
