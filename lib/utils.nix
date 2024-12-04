@@ -1,10 +1,32 @@
 {nixpkgs}: let
   inherit (nixpkgs.lib) strings;
+
+  error.handleError = message: code: ''
+    echo "Error: ${message}" >&2
+    return ${toString code}
+  '';
 in {
-  # Path manipulation utilities
+  error = {
+    inherit (error) handleError;
+
+    validatePath = path: ''
+      if [[ ! -d "${path}" ]]; then
+        ${error.handleError "Directory does not exist: ${path}" 1}
+      fi
+    '';
+  };
+
+  # Update path utilities with better error handling
   path = {
-    # Make a path safe for shell usage
-    makeShellSafe = path: strings.escapeShellArg path;
+    # Make a path safe for shell usage with validation
+    makeShellSafe = path: let
+      sanitized = strings.escapeShellArg path;
+    in ''
+      if [[ "${sanitized}" =~ [[:space:]] ]]; then
+        ${error.handleError "Path contains spaces: ${path}" 1}
+      fi
+      echo "${sanitized}"
+    '';
 
     # Create full path for an item
     makeItemPath = {
