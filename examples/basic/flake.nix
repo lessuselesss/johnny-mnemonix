@@ -18,9 +18,9 @@
       modules = [
         johnny-mnemonix.homeManagerModules.default
         {
-          home.username = "example";
-          home.homeDirectory = "/home/example";
-          home.stateVersion = "23.11";
+          home.username = "user1";
+          home.homeDirectory = "/home/user1";
+          home.stateVersion = "24.11";
 
           johnny-mnemonix = {
             enable = true;

@@ -33,5 +33,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.1.0] - YYYY-MM-DD
 - Initial release
 
-[Unreleased]: https://github.com/username/johnny-mnemonix/compare/v0.1.0...HEAD
-[0.1.0]: https://github.com/username/johnny-mnemonix/releases/tag/v0.1.0 
+[Unreleased]: https://github.com/lessuselesss/johnny-mnemonix/compare/v0.1.0...HEAD
+[0.1.0]: https://github.com/lessuselesss/johnny-mnemonix/releases/tag/v0.1.0 

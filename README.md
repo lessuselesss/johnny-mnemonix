@@ -54,7 +54,7 @@ In your system's `flake.nix`, add Johnny-Mnemonix to your inputs:
       url = "github:nix-community/home-manager";
       inputs.nixpkgs.follows = "nixpkgs";
     };
-    johnny-mnemonix.url = "github:username/johnny-mnemonix"; # Replace with actual repo URL
+    johnny-mnemonix.url = "github:lessuselesss/johnny-mnemonix";
   };
 
   outputs = { self, nixpkgs, home-manager, johnny-mnemonix }: {

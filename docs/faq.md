@@ -25,7 +25,7 @@ Johnny-Mnemonix is a declarative document management system built on the Johnny 
 ```nix
 # flake.nix
 {
-  inputs.johnny-mnemonix.url = "github:username/johnny-mnemonix";
+  inputs.johnny-mnemonix.url = "github:lessuselesss/johnny-mnemonix";
   
   outputs = { self, nixpkgs, home-manager, johnny-mnemonix }: {
     homeConfigurations."user" = home-manager.lib.homeManagerConfiguration {

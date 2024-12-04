@@ -10,7 +10,7 @@ Please note that this project is released with a Contributor Code of Conduct. By
 
 1. **Fork the Repository**
    ```bash
-   git clone https://github.com/your-username/johnny-mnemonix.git
+   git clone https://github.com/lessuselesss/johnny-mnemonix.git
    cd johnny-mnemonix
    ```
 
