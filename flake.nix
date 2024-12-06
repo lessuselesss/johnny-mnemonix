@@ -1,5 +1,5 @@
 {
-  description = "Johnny Mnemonix - Personal Knowledge Management";
+  description = "Johnny Mnemonix - Declaritive Document Manager";
 
   inputs = {
     nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
@@ -14,63 +14,67 @@
     home-manager,
     ...
   }: let
-    system = "aarch64-darwin";
-    pkgs = nixpkgs.legacyPackages.${system};
+    supportedSystems = [
+      "x86_64-linux"
+      "aarch64-linux"
+      "x86_64-darwin"
+      "aarch64-darwin"
+    ];
+    forAllSystems = nixpkgs.lib.genAttrs supportedSystems;
+    pkgsForSystem = system: nixpkgs.legacyPackages.${system};
   in {
     homeManagerModules.default = ./modules/johnny-mnemonix.nix;
 
-    devShells.${system}.default = pkgs.mkShell {
-      buildInputs = with pkgs; [
-        git
-        alejandra
-        nil
-        statix
-        deadnix
-      ];
-    };
+    devShells = forAllSystems (system: {
+      default = let
+        pkgs = pkgsForSystem system;
+      in
+        pkgs.mkShell {
+          buildInputs = with pkgs; [
+            git
+            alejandra
+            nil
+            statix
+            deadnix
+          ];
+        };
+    });
 
-    checks.${system} = {
+    checks = forAllSystems (system: {
       vm-test = import ./tests {
-        inherit pkgs;
+        pkgs = pkgsForSystem system;
       };
-    };
+    });
 
-    homeConfigurations.lessuseless = home-manager.lib.homeManagerConfiguration {
-      inherit pkgs;
-      modules = [
-        ./modules/johnny-mnemonix.nix
-        {
-          home = {
-            username = "lessuseless";
-            homeDirectory = "/Users/lessuseless";
-            stateVersion = "23.11";
-          };
-
-          programs.zsh = {
-            enable = true;
-            enableCompletion = true;
-            enableAutosuggestions = true;
-            enableSyntaxHighlighting = true;
-            initExtraFirst = ''
-              # Source johnny-mnemonix functions
-              if [ -f $HOME/.local/share/johnny-mnemonix/shell-functions.sh ]; then
-                source $HOME/.local/share/johnny-mnemonix/shell-functions.sh
-              fi
-            '';
-          };
-
-          johnny-mnemonix = {
-            enable = true;
-            baseDir = "/Users/lessuseless/Documents";
-            shell = {
-              enable = true;
-              prefix = "jm";
-              aliases = true;
-              functions = true;
+    homeConfigurations = forAllSystems (system: let
+      pkgs = pkgsForSystem system;
+    in {
+      example = home-manager.lib.homeManagerConfiguration {
+        inherit pkgs;
+        modules = [
+          ./modules/johnny-mnemonix.nix
+          {
+            home = {
+              username = "example";
+              homeDirectory = "/home/example";
+              stateVersion = "24.05";
             };
-          };
-        }
-      ];
-    };
+
+            programs.zsh.enable = true;
+
+            johnny-mnemonix = {
+              enable = true;
+              baseDir = "~/Documents";
+              shell = {
+                enable = true;
+                prefix = "jm";
+                aliases = true;
+                functions = true;
+              };
+            };
+          }
+        ];
+      };
+    });
   };
 }
