@@ -17,6 +17,8 @@
     system = "aarch64-darwin";
     pkgs = nixpkgs.legacyPackages.${system};
   in {
+    homeManagerModules.default = ./modules/johnny-mnemonix.nix;
+
     devShells.${system}.default = pkgs.mkShell {
       buildInputs = with pkgs; [
         git
