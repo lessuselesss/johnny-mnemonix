@@ -8,13 +8,9 @@ with lib; let
 
   # Helper to create directories
   mkAreaDirs = areas: let
-    # Remove $HOME/Documents/ prefix if present
-    cleanPath = path:
-      replaceStrings ["$HOME/Documents/"] [""] path;
-
     mkCategoryDirs = areaId: areaConfig: categoryId: categoryConfig:
       mapAttrs' (itemId: itemName: {
-        name = cleanPath "${cfg.baseDir}/${areaId}-${areaConfig.name}/${categoryId}-${categoryConfig.name}/${itemId}-${itemName}";
+        name = "johnny-mnemonix/${areaId}-${areaConfig.name}/${categoryId}-${categoryConfig.name}/${itemId}-${itemName}";
         value.directory = {};
       })
       categoryConfig.items;
@@ -192,14 +188,14 @@ in {
 
   config = mkIf cfg.enable (mkMerge [
     {
+      xdg.enable = true;
+      xdg.dataHome = mkIf (cfg.baseDir != null) cfg.baseDir;
+
       home.file = mkMerge [
-        # Keep file
         {
           ".local/share/johnny-mnemonix/.keep".text = "";
         }
-        # Area directories
         (mkAreaDirs cfg.areas)
-        # Shell functions
         {
           ".local/share/johnny-mnemonix/shell-functions.sh" = mkIf cfg.shell.enable {
             text = mkShellFunctions cfg.shell.prefix;
