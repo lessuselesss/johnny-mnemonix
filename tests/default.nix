@@ -27,14 +27,16 @@
               # Regular string item
               "11.01" = "Budget";
 
-              # Git repository item
+              # Git repository item with explicit name
               "11.02" = {
+                name = "nix-core"; # Named repository
                 url = "https://github.com/nixos/nix";
                 ref = "master";
               };
 
               # Git repository with sparse checkout
               "11.03" = {
+                name = "nixpkgs-docs"; # Named repository
                 url = "https://github.com/NixOS/nixpkgs";
                 ref = "master";
                 sparse = ["README.md" "LICENSE"];
@@ -208,6 +210,60 @@ in
           )
           machine.succeed(
               f"test $(stat -c '%G' /home/{testUser}/Documents/10-19\\ Personal/11\\ Projects/11.02/.git) = '{testGroup}'"
+          )
+
+      with subtest("Named Git Repositories"):
+          # Check if named git repos were created with correct names
+          machine.succeed(
+              "test -d /home/${testUser}/Documents/10-19\\ Personal/11\\ Projects/11.02\\ nix-core"
+          )
+          machine.succeed(
+              "test -d /home/${testUser}/Documents/10-19\\ Personal/11\\ Projects/11.02\\ nix-core/.git"
+          )
+
+          # Check sparse checkout with named directory
+          machine.succeed(
+              "test -d /home/${testUser}/Documents/10-19\\ Personal/11\\ Projects/11.03\\ nixpkgs-docs"
+          )
+          machine.succeed(
+              "test -d /home/${testUser}/Documents/10-19\\ Personal/11\\ Projects/11.03\\ nixpkgs-docs/.git"
+          )
+
+          # Verify git repo contents in named directory
+          machine.succeed(
+              "test -f /home/${testUser}/Documents/10-19\\ Personal/11\\ Projects/11.02\\ nix-core/README.md"
+          )
+
+          # Verify sparse checkout in named directory
+          machine.succeed(
+              "test -f /home/${testUser}/Documents/10-19\\ Personal/11\\ Projects/11.03\\ nixpkgs-docs/README.md"
+          )
+          machine.succeed(
+              "test -f /home/${testUser}/Documents/10-19\\ Personal/11\\ Projects/11.03\\ nixpkgs-docs/LICENSE"
+          )
+          machine.fail(
+              "test -d /home/${testUser}/Documents/10-19\\ Personal/11\\ Projects/11.03\\ nixpkgs-docs/nixos"
+          )
+
+          # Check permissions on named directories
+          machine.succeed(
+              f"test $(stat -c '%a' '/home/{testUser}/Documents/10-19 Personal/11 Projects/11.02 nix-core') = '{testMode}'"
+          )
+          machine.succeed(
+              f"test $(stat -c '%U' '/home/{testUser}/Documents/10-19 Personal/11 Projects/11.02 nix-core') = '{testUser}'"
+          )
+          machine.succeed(
+              f"test $(stat -c '%G' '/home/{testUser}/Documents/10-19 Personal/11 Projects/11.02 nix-core') = '{testGroup}'"
+          )
+
+          # Verify git configuration in named directory
+          machine.succeed(
+              "cd '/home/${testUser}/Documents/10-19 Personal/11 Projects/11.02 nix-core' "
+              + "&& git remote get-url origin | grep -q 'https://github.com/nixos/nix'"
+          )
+          machine.succeed(
+              "cd '/home/${testUser}/Documents/10-19 Personal/11 Projects/11.02 nix-core' "
+              + "&& git symbolic-ref --short HEAD | grep -q 'master'"
           )
 
       with subtest("Idempotency"):

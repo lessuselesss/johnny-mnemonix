@@ -10,6 +10,10 @@ with lib; let
   # Add new types for Git repository items
   gitItemType = types.submodule {
     options = {
+      name = mkOption {
+        type = types.str;
+        description = "Directory name for the repository";
+      };
       url = mkOption {
         type = types.str;
         description = "Git repository URL";
@@ -36,18 +40,18 @@ with lib; let
     mkCategoryDirs = areaId: areaConfig: categoryId: categoryConfig:
       concatMapStrings (itemId: let
         itemConfig = categoryConfig.items.${itemId};
-        itemPath = "${cfg.baseDir}/${areaId}-${areaConfig.name}/${categoryId}-${categoryConfig.name}/${itemId}";
+        baseItemPath = "${cfg.baseDir}/${areaId}-${areaConfig.name}/${categoryId}-${categoryConfig.name}/${itemId}";
       in
         if isString itemConfig
         then ''
-          mkdir -p "${itemPath}-${itemConfig}"
+          mkdir -p "${baseItemPath}-${itemConfig}"
         ''
         else ''
           # Create parent directory if it doesn't exist
-          mkdir -p "$(dirname "${itemPath}")"
+          mkdir -p "$(dirname "${baseItemPath}")"
 
-          # Check if repo already exists
-          if [ ! -d "${itemPath}" ]; then
+          # Use the name field for the directory
+          if [ ! -d "${baseItemPath}-${itemConfig.name}" ]; then
             # Clone the repository
             ${pkgs.git}/bin/git clone ${
             if itemConfig.sparse != []
@@ -55,11 +59,11 @@ with lib; let
             else ""
           } \
               --branch ${itemConfig.ref} \
-              ${itemConfig.url} "${itemPath}"
+              ${itemConfig.url} "${baseItemPath}-${itemConfig.name}"
 
             # Configure sparse checkout if needed
             ${optionalString (itemConfig.sparse != []) ''
-            cd "${itemPath}"
+            cd "${baseItemPath}-${itemConfig.name}"
             ${pkgs.git}/bin/git sparse-checkout set ${concatStringsSep " " itemConfig.sparse}
           ''}
           fi
