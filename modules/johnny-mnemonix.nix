@@ -91,10 +91,13 @@ with lib; let
       complete -F _jm_completion ${prefix}find
 
       function _jm_completion() {
-        local cur="${COMP_WORDS [COMP_CWORD]}"
-        local base="${cfg.baseDir}"
+        local cur prev
+        COMPREPLY=()
+        cur="$2"
+        prev="$3"
+        base="${cfg.baseDir}"
 
-        case "${COMP_WORDS [0]}" in
+        case "$1" in
           ${prefix})
             COMPREPLY=($(compgen -d "$base/$cur" | sed "s|$base/||"))
             ;;

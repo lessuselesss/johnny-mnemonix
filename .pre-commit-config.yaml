@@ -1,1 +1,33 @@
-/nix/store/l7a56dxywwfvz7ba52dyqyr777r5q7qf-pre-commit-config.json
+repos:
+  - repo: local
+    hooks:
+      - id: tests
+        name: "tests"
+        entry: nix build .#checks.aarch64-darwin.basic-test
+        language: system
+        pass_filenames: false
+      - id: alejandra
+        name: "alejandra"
+        entry: alejandra
+        language: system
+        files: .*\.nix$
+      - id: deadnix
+        name: "deadnix"
+        entry: deadnix
+        language: system
+        files: .*\.nix$
+      - id: flake-check
+        name: "flake-check"
+        entry: nix flake check
+        language: system
+        pass_filenames: false
+      # - id: nil
+      #   name: "nil diagnostics"
+      #   entry: bash -c 'nil diagnostics "$@"' --
+      #   language: system
+      #   files: .*\.nix$
+      - id: statix
+        name: "statix"
+        entry: statix check .
+        language: system
+        pass_filenames: false
