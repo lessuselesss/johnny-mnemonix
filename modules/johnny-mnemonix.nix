@@ -187,7 +187,7 @@ with lib; let
     "${prefix}-up2" = "cd ../..";
   };
 
-  # Shell functions with proper string interpolation
+  # Shell functions with proper string interpolation and basic completion
   mkShellFunctions = prefix: ''
     # Go to Johnny Mnemonix area/category/item
     function ${prefix}() {
@@ -246,6 +246,59 @@ with lib; let
 
       find "$base" -type d -name "*$pattern*"
     }
+
+    # Basic command completion
+    if [[ -n "$ZSH_VERSION" ]]; then
+      # ZSH completion
+      compdef _jm_completion ${prefix}
+      compdef _jm_completion ${prefix}ls
+      compdef _jm_completion ${prefix}find
+
+      function _jm_completion() {
+        local curcontext="$curcontext" state line
+        typeset -A opt_args
+
+        case "$words[1]" in
+          ${prefix})
+            _arguments '1:directory:_jm_dirs'
+            ;;
+          ${prefix}ls)
+            _arguments '1:directory:_jm_dirs'
+            ;;
+          ${prefix}find)
+            _message 'pattern to search for'
+            ;;
+        esac
+      }
+
+      function _jm_dirs() {
+        local base="${cfg.baseDir}"
+        _files -W "$base" -/
+      }
+
+    elif [[ -n "$BASH_VERSION" ]]; then
+      # Bash completion
+      complete -F _jm_completion ${prefix}
+      complete -F _jm_completion ${prefix}ls
+      complete -F _jm_completion ${prefix}find
+
+      function _jm_completion() {
+        local cur="${COMP_WORDS [COMP_CWORD]}"
+        local base="${cfg.baseDir}"
+
+        case "${COMP_WORDS [0]}" in
+          ${prefix})
+            COMPREPLY=($(compgen -d "$base/$cur" | sed "s|$base/||"))
+            ;;
+          ${prefix}ls)
+            COMPREPLY=($(compgen -d "$base/$cur" | sed "s|$base/||"))
+            ;;
+          ${prefix}find)
+            # No completion for find pattern
+            ;;
+        esac
+      }
+    fi
   '';
 in {
   options.johnny-mnemonix = {

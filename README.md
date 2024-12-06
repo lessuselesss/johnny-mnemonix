@@ -18,29 +18,31 @@ Johnny-Mnemonix is a Home Manager module that brings the power of declarative co
 
 When enabled, Johnny-Mnemonix creates the following structure:
 
+
 ```
 $HOMEOFFICE/ #($HOME/Documents/)
-├── 10-19 Area/
-│   ├── 11 Category/
-│   │   ├── 11.01 ID-Name/
-│   │   └── 11.02 ID-Name/
+├── 10-19 Health/ (Area)
+│   ├── 11 Fitness/ (Category) 
+│   │   ├── 11.01 Diet/ (ID-Name)
+│   │   └── 11.02 Exercise/ (ID-Name)
 │   └── ...
 └── ...
 ```
+<img src="https://johnnydecimal.com/img/v6/11.01A-Diagram_1552_NYC--dtop-1_resize-dark-cx-1000x609.png" style="max-width: 800px; width: 100%" alt="Johnny.Decimal system diagram">
 
 Each component follows the Johnny Decimal system, `analogizing a Book Case`  
 
 `shelf` 
 
-- **Areas**: Broad divisions (10-19, 20-29, etc.)
+- **Areas**: Groupings of categories (10-19, 20-29, etc.)
   
 `box`
 
-- **Categories**: Subdivisions within areas (11, 12, etc.)
+- **Categories**: Groupings of items (11, 12, etc.)
   
 `book`
 
-- **IDs**: Specific locations for files (11.01, 11.02, etc.) 
+- **IDs**: Counter starting at 01 (11.01, 11.02, etc.) 
 
 ## Configuration
 
