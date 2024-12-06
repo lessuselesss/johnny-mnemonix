@@ -1,5 +1,5 @@
 {
-  description = "Johnny Mnemonix - Declaritive Document Manager";
+  description = "Johnny Mnemonix - A Johnny Decimal-based Declaritive Document Manager";
 
   inputs = {
     nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
