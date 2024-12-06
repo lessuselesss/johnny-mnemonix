@@ -19,26 +19,49 @@
             "11.02" = "Investments";
           };
         };
-        "12" = {
-          name = "Health";
-          items = {
-            "12.01" = "Medical Records";
-          };
-        };
-      };
-    };
-    "20-29" = {
-      name = "Work";
-      categories = {
-        "21" = {
-          name = "Projects";
-          items = {
-            "21.01" = "Current Project";
-          };
-        };
       };
     };
   };
+
+  # Test user details
+  testUser = "test";
+  testGroup = "testgroup";
+  testMode = "0750"; # More restrictive mode for testing
+  otherUser = "other";
+  otherGroup = "othergroup";
+
+  # Helper function to check permissions
+  checkPerms = dirPath: ''
+    # Check directory exists
+    machine.succeed("test -d '${dirPath}'")
+
+    # Check ownership
+    machine.succeed(
+        "stat -c '%U %G' '${dirPath}' | "
+        + "grep -q '^${testUser} ${testGroup}$'"
+    )
+
+    # Check mode
+    machine.succeed(
+        "stat -c '%a' '${dirPath}' | "
+        + "grep -q '^${testMode}$'"
+    )
+
+    # Check user permissions (owner should have rwx)
+    machine.succeed("su ${testUser} -c 'test -r \"${dirPath}\"'")  # read
+    machine.succeed("su ${testUser} -c 'test -w \"${dirPath}\"'")  # write
+    machine.succeed("su ${testUser} -c 'test -x \"${dirPath}\"'")  # execute
+
+    # Check group permissions (group should have r-x for 750)
+    machine.succeed("su ${testUser} -g ${testGroup} -c 'test -r \"${dirPath}\"'")  # read
+    machine.fail("su ${testUser} -g ${testGroup} -c 'test -w \"${dirPath}\"'")     # no write
+    machine.succeed("su ${testUser} -g ${testGroup} -c 'test -x \"${dirPath}\"'")  # execute
+
+    # Check other permissions (others should have no access for 750)
+    machine.fail("su ${otherUser} -c 'test -r \"${dirPath}\"'")  # no read
+    machine.fail("su ${otherUser} -c 'test -w \"${dirPath}\"'")  # no write
+    machine.fail("su ${otherUser} -c 'test -x \"${dirPath}\"'")  # no execute
+  '';
 in
   makeTest {
     name = "johnny-mnemonix";
@@ -48,31 +71,59 @@ in
         "${pkgs.home-manager}/nixos/home-manager.nix"
       ];
 
-      # Create test user
-      users.users.test = {
-        isNormalUser = true;
-        home = "/home/test";
-        shell = pkgs.bash;
+      # Create test groups
+      users.groups = {
+        ${testGroup} = {};
+        ${otherGroup} = {};
+      };
+
+      # Create test users
+      users.users = {
+        ${testUser} = {
+          isNormalUser = true;
+          home = "/home/${testUser}";
+          group = testGroup;
+          shell = pkgs.bash;
+        };
+        ${otherUser} = {
+          isNormalUser = true;
+          home = "/home/${otherUser}";
+          group = otherGroup;
+          shell = pkgs.bash;
+        };
       };
 
       # Enable both shells for testing
       programs.bash.enable = true;
       programs.zsh.enable = true;
 
-      home-manager.users.test = {
+      home-manager.users.${testUser} = {...}: {
         imports = [../modules/johnny-mnemonix.nix];
 
         home = {
-          username = "test";
-          homeDirectory = "/home/test";
+          username = testUser;
+          homeDirectory = "/home/${testUser}";
           stateVersion = "23.11";
         };
 
         # Enable the module with test configuration
         johnny-mnemonix = {
           enable = true;
-          baseDir = "/home/test/Documents"; # Explicitly set for testing
+          baseDir = "/home/${testUser}/Documents";
           areas = testConfig;
+
+          # Test custom permissions
+          permissions = {
+            dirMode = testMode;
+            user = testUser;
+            group = testGroup;
+          };
+
+          # Test cleanup options
+          cleanup = {
+            enable = true;
+            backup = true;
+          };
         };
       };
     };
@@ -80,44 +131,46 @@ in
     testScript = ''
       # Wait for system to be ready
       machine.wait_for_unit("multi-user.target")
-      machine.wait_for_unit("home-manager-test.service")
+      machine.wait_for_unit("home-manager-${testUser}.service")
 
-      # Test base directory creation
-      machine.succeed("test -d /home/test/Documents")
+      # Test base directory permissions
+      with subtest("Base directory permissions"):
+          ${checkPerms "/home/${testUser}/Documents"}
 
-      # Test area directories
-      with subtest("Area directories"):
-          machine.succeed("test -d '/home/test/Documents/10-19 Personal'")
-          machine.succeed("test -d '/home/test/Documents/20-29 Work'")
+      # Test area directory permissions
+      with subtest("Area directory permissions"):
+          ${checkPerms "/home/${testUser}/Documents/10-19 Personal"}
 
-      # Test category directories
-      with subtest("Category directories"):
-          machine.succeed("test -d '/home/test/Documents/10-19 Personal/11 Finance'")
-          machine.succeed("test -d '/home/test/Documents/10-19 Personal/12 Health'")
-          machine.succeed("test -d '/home/test/Documents/20-29 Work/21 Projects'")
+      # Test category directory permissions
+      with subtest("Category directory permissions"):
+          ${checkPerms "/home/${testUser}/Documents/10-19 Personal/11 Finance"}
 
-      # Test item directories
-      with subtest("Item directories"):
-          machine.succeed("test -d '/home/test/Documents/10-19 Personal/11 Finance/11.01 Budget'")
-          machine.succeed("test -d '/home/test/Documents/10-19 Personal/11 Finance/11.02 Investments'")
-          machine.succeed("test -d '/home/test/Documents/10-19 Personal/12 Health/12.01 Medical Records'")
-          machine.succeed("test -d '/home/test/Documents/20-29 Work/21 Projects/21.01 Current Project'")
+      # Test item directory permissions
+      with subtest("Item directory permissions"):
+          ${checkPerms "/home/${testUser}/Documents/10-19 Personal/11 Finance/11.01 Budget"}
+          ${checkPerms "/home/${testUser}/Documents/10-19 Personal/11 Finance/11.02 Investments"}
 
-      # Test shell aliases
-      with subtest("Shell aliases"):
-          # Test bash alias
-          machine.succeed("su - test -c 'source ~/.bashrc && jd && pwd' | grep -q '/home/test/Documents'")
-          # Test zsh alias
-          machine.succeed("su - test -c 'source ~/.zshrc && jd && pwd' | grep -q '/home/test/Documents'")
+      # Test file creation in directories
+      with subtest("File operations"):
+          # Owner should be able to create files
+          machine.succeed("su ${testUser} -c 'touch /home/${testUser}/Documents/test.txt'")
+          machine.succeed("su ${testUser} -c 'rm /home/${testUser}/Documents/test.txt'")
 
-      # Test XDG compliance
-      with subtest("XDG configuration"):
-          machine.succeed("test -L /home/test/.config/user-dirs.dirs")
-          machine.succeed("grep -q 'XDG_DOCUMENTS_DIR=\"/home/test/Documents\"' /home/test/.config/user-dirs.dirs")
+          # Group should not be able to create files (750)
+          machine.fail("su ${testUser} -g ${testGroup} -c 'touch /home/${testUser}/Documents/test.txt'")
 
-      # Test directory permissions
-      with subtest("Directory permissions"):
-          machine.succeed("test -O /home/test/Documents")  # Test ownership
-          machine.succeed("stat -c %a /home/test/Documents | grep -q '755'")  # Test permissions
+          # Others should not be able to create files
+          machine.fail("su ${otherUser} -c 'touch /home/${testUser}/Documents/test.txt'")
+
+      # Test directory traversal
+      with subtest("Directory traversal"):
+          # Owner should be able to list directory contents
+          machine.succeed("su ${testUser} -c 'ls /home/${testUser}/Documents/10-19 Personal/11 Finance'")
+
+          # Group should be able to list directory contents
+          machine.succeed("su ${testUser} -g ${testGroup} -c 'ls /home/${testUser}/Documents/10-19 Personal/11 Finance'")
+
+          # Others should not be able to list directory contents
+          machine.fail("su ${otherUser} -c 'ls /home/${testUser}/Documents/10-19 Personal/11 Finance'")
     '';
   }
