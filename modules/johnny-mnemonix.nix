@@ -147,6 +147,106 @@ with lib; let
       };
     };
   };
+
+  # Shell integration options
+  shellIntegrationType = types.submodule {
+    options = {
+      enable = mkOption {
+        type = types.bool;
+        default = true;
+        description = "Whether to enable shell integration";
+      };
+
+      prefix = mkOption {
+        type = types.str;
+        default = "jm";
+        description = "Prefix for shell aliases (defaults to 'jm' to avoid conflicts)";
+      };
+
+      aliases = mkOption {
+        type = types.bool;
+        default = true;
+        description = "Whether to create shell aliases";
+      };
+
+      functions = mkOption {
+        type = types.bool;
+        default = true;
+        description = "Whether to create shell functions";
+      };
+    };
+  };
+
+  # Shell aliases with proper string concatenation
+  mkShellAliases = prefix: {
+    "${prefix}" = "cd ${cfg.baseDir}";
+    "${prefix}l" = "${prefix}ls";
+    "${prefix}ll" = "ls -l ${cfg.baseDir}";
+    "${prefix}la" = "ls -la ${cfg.baseDir}";
+    "${prefix}-up" = "cd ..";
+    "${prefix}-up2" = "cd ../..";
+  };
+
+  # Shell functions with proper string interpolation
+  mkShellFunctions = prefix: ''
+    # Go to Johnny Mnemonix area/category/item
+    function ${prefix}() {
+      local base="${cfg.baseDir}"
+      local target="$1"
+
+      # No args = go to base directory
+      if [ -z "$target" ]; then
+        cd "$base" || return 1
+        return
+      }
+
+      # Full path = direct navigation
+      if [ -d "$base/$target" ]; then
+        cd "$base/$target" || return 1
+        return
+      }
+
+      # Number only = find matching directory
+      if [[ "$target" =~ ^[0-9.]+$ ]]; then
+        local found
+        found=$(find "$base" -maxdepth 3 -type d -name "*$target*" | head -n 1)
+        if [ -n "$found" ]; then
+          cd "$found" || return 1
+          return
+        fi
+      fi
+
+      echo "No matching directory found for: $target"
+      return 1
+    }
+
+    # List Johnny Mnemonix structure
+    function ${prefix}ls() {
+      local base="${cfg.baseDir}"
+      local target="$1"
+
+      if [ -z "$target" ]; then
+        # No args = list areas
+        find "$base" -maxdepth 1 -type d -name "[0-9]*" | sort
+      else
+        # With path = list specific location
+        find "$base/$target" -maxdepth 1 -type d -name "[0-9]*" | sort
+      fi
+    }
+
+    # Find in Johnny Mnemonix structure
+    function ${prefix}find() {
+      local base="${cfg.baseDir}"
+      local pattern="$1"
+
+      if [ -z "$pattern" ]; then
+        echo "Usage: ${prefix}find <pattern>"
+        return 1
+      fi
+
+      find "$base" -type d -name "*$pattern*"
+    }
+  '';
 in {
   options.johnny-mnemonix = {
     enable = mkEnableOption "Johnny Decimal document management";
@@ -205,63 +305,78 @@ in {
         This adds a "00-09 System" area with standard user directories as items.
       '';
     };
+
+    shell = mkOption {
+      type = shellIntegrationType;
+      default = {};
+      description = "Shell integration options";
+    };
   };
 
-  config = mkIf cfg.enable {
-    # Validate custom domain paths
-    assertions = [
-      {
-        assertion = !(hasPrefix "/" cfg.domain);
-        message = "Custom domain paths must be relative to $HOME (no leading slash)";
-      }
-      {
-        assertion = !(hasInfix ".." cfg.domain);
-        message = "Custom domain paths cannot contain parent directory references (..)";
-      }
-    ];
+  config = mkIf cfg.enable (mkMerge [
+    # Base configuration
+    {
+      # Validate custom domain paths
+      assertions = [
+        {
+          assertion = !(hasPrefix "/" cfg.domain);
+          message = "Custom domain paths must be relative to $HOME (no leading slash)";
+        }
+        {
+          assertion = !(hasInfix ".." cfg.domain);
+          message = "Custom domain paths cannot contain parent directory references (..)";
+        }
+      ];
 
-    # Create the base directory structure with permissions
-    home.file =
-      (mapAttrs
-        (_: _: {
-          source = null;
-          inherit (cfg.permissions) dirMode user group;
-        })
-        (mkDirs (
-          if cfg.useDefaultStructure
-          then defaultSystemStructure // cfg.areas
-          else cfg.areas
-        )))
-      // {
-        ${cfg.baseDir} = {
-          source = null;
-          inherit (cfg.permissions) dirMode user group;
+      # Create the base directory structure with permissions
+      home.file =
+        (mapAttrs
+          (_: _: {
+            source = null;
+            inherit (cfg.permissions) dirMode user group;
+          })
+          (mkDirs (
+            if cfg.useDefaultStructure
+            then defaultSystemStructure // cfg.areas
+            else cfg.areas
+          )))
+        // {
+          ${cfg.baseDir} = {
+            source = null;
+            inherit (cfg.permissions) dirMode user group;
+          };
         };
+
+      # XDG compliance only for standard XDG domains
+      xdg.userDirs =
+        mkIf (builtins.elem cfg.domain [
+          "documents"
+          "pictures"
+          "videos"
+          "music"
+          "downloads"
+          "desktop"
+          "public"
+        ]) {
+          enable = true;
+          createDirectories = true;
+          ${cfg.domain} = cfg.baseDir;
+        };
+    }
+
+    # Shell integration
+    (mkIf cfg.shell.enable {
+      programs.bash = {
+        inherit (cfg.shell) enable;
+        initExtra = mkIf cfg.shell.functions (mkShellFunctions cfg.shell.prefix);
+        shellAliases = mkIf cfg.shell.aliases (mkShellAliases cfg.shell.prefix);
       };
 
-    # Add shell aliases
-    programs.bash.shellAliases = {
-      jd = "cd ${cfg.baseDir}";
-    };
-
-    programs.zsh.shellAliases = {
-      jd = "cd ${cfg.baseDir}";
-    };
-
-    # XDG compliance only for standard XDG domains
-    xdg.userDirs =
-      mkIf (builtins.elem cfg.domain [
-        "documents"
-        "pictures"
-        "videos"
-        "music"
-        "downloads"
-        "desktop"
-        "public"
-      ]) {
-        enable = true;
-        createDirectories = true;
-        ${cfg.domain} = cfg.baseDir;
+      programs.zsh = {
+        inherit (cfg.shell) enable;
+        initExtra = mkIf cfg.shell.functions (mkShellFunctions cfg.shell.prefix);
+        shellAliases = mkIf cfg.shell.aliases (mkShellAliases cfg.shell.prefix);
       };
-  };
+    })
+  ]);
 }
