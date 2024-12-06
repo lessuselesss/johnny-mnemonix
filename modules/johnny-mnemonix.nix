@@ -9,28 +9,20 @@ with lib; let
   # Helper to create directories
   mkAreaDirs = areas: let
     mkCategoryDirs = areaId: areaConfig: categoryId: categoryConfig:
-      mapAttrs' (itemId: itemName: {
-        name = "johnny-mnemonix/${areaId}-${areaConfig.name}/${categoryId}-${categoryConfig.name}/${itemId}-${itemName}";
-        value.directory = {};
-      })
-      categoryConfig.items;
+      concatMapStrings (itemId: ''
+        mkdir -p "${cfg.baseDir}/${areaId}-${areaConfig.name}/${categoryId}-${categoryConfig.name}/${itemId}-${categoryConfig.items.${itemId}}"
+      '') (attrNames categoryConfig.items);
 
     mkAreaDir = areaId: areaConfig:
-      foldl' (acc: set: acc // set) {} (
-        mapAttrsToList (
-          categoryId: categoryConfig:
-            mkCategoryDirs areaId areaConfig categoryId categoryConfig
-        )
-        areaConfig.categories
-      );
+      concatMapStrings (
+        categoryId:
+          mkCategoryDirs areaId areaConfig categoryId areaConfig.categories.${categoryId}
+      ) (attrNames areaConfig.categories);
   in
-    foldl' (acc: set: acc // set) {} (
-      mapAttrsToList (
-        areaId: areaConfig:
-          mkAreaDir areaId areaConfig
-      )
-      areas
-    );
+    concatMapStrings (
+      areaId:
+        mkAreaDir areaId areas.${areaId}
+    ) (attrNames areas);
 
   # Helper to create shell functions
   mkShellFunctions = prefix: ''
@@ -188,21 +180,17 @@ in {
 
   config = mkIf cfg.enable (mkMerge [
     {
-      xdg.enable = true;
-      xdg.dataHome = mkIf (cfg.baseDir != null) cfg.baseDir;
+      home.activation.createJohnnyMnemonixDirs = lib.hm.dag.entryAfter ["writeBoundary"] ''
+        ${mkAreaDirs cfg.areas}
+      '';
 
-      home.file = mkMerge [
-        {
-          ".local/share/johnny-mnemonix/.keep".text = "";
-        }
-        (mkAreaDirs cfg.areas)
-        {
-          ".local/share/johnny-mnemonix/shell-functions.sh" = mkIf cfg.shell.enable {
-            text = mkShellFunctions cfg.shell.prefix;
-            executable = true;
-          };
-        }
-      ];
+      home.file = {
+        ".local/share/johnny-mnemonix/.keep".text = "";
+        ".local/share/johnny-mnemonix/shell-functions.sh" = mkIf cfg.shell.enable {
+          text = mkShellFunctions cfg.shell.prefix;
+          executable = true;
+        };
+      };
 
       programs.zsh = mkIf cfg.shell.enable {
         enable = true;
