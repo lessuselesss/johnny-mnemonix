@@ -1,37 +1,76 @@
 # Configuration Guide
 
-This guide explains how to configure Johnny-Mnemonix for your document management needs.
+## Flake Integration
 
-## Basic Configuration
-
-The minimal configuration requires:
-1. Adding Johnny-Mnemonix to your flake inputs
-2. Enabling the module in your Home Manager configuration
-3. Configuring basic options
+First, add Johnny-Mnemonix to your flake inputs:
 
 ```nix
 {
-  johnny-mnemonix = {
-    enable = true;
-    baseDir = "~/Documents";
-    shell = {
-      enable = true;
-      prefix = "jm";  # Optional: customize command prefix
-      aliases = true;
-      functions = true;
+  inputs = {
+    johnny-mnemonix = {
+      url = "github:lessuselesss/johnny-mnemonix";
+      inputs.nixpkgs.follows = "nixpkgs";  # Optional but recommended
     };
+  };
+}
+```
+
+## Home Manager Integration
+
+For Darwin/MacOS systems, add it to your darwin configuration:
+
+```nix
+{
+  home-manager.users.${user} = { config, ... }: {
+    imports = [johnny-mnemonix.homeManagerModules.default];
+    
+    johnny-mnemonix = {
+      enable = true;
+      baseDir = "${config.home.homeDirectory}/Documents";
+      shell = {
+        enable = true;
+        prefix = "jm";
+        aliases = true;
+        functions = true;
+      };
+      areas = {
+        "10-19" = {
+          name = "Personal";
+          categories = {
+            "11" = {
+              name = "Finance";
+              items = {
+                "11.01" = "Budget";
+                "11.02" = "Investments";
+              };
+            };
+          };
+        };
+      };
+    };
+  };
+}
+```
+
+For NixOS systems, add it to your NixOS configuration:
+
+```nix
+{
+  home-manager.users.${user} = { config, ... }: {
+    imports = [johnny-mnemonix.homeManagerModules.default];
+    # Same configuration as above
   };
 }
 ```
 
 ## Configuration Options
 
-### Top-Level Options
+### Required Options
 
-| Option | Type | Default | Description |
-|--------|------|---------|-------------|
-| `enable` | boolean | `false` | Enable Johnny Mnemonix |
-| `baseDir` | string | `"$HOME/Documents"` | Base directory for document structure |
+| Option | Type | Description |
+|--------|------|-------------|
+| `enable` | boolean | Must be set to `true` to activate the module |
+| `baseDir` | string | Base directory for document structure (e.g., `${config.home.homeDirectory}/Documents`) |
 
 ### Shell Integration Options
 
@@ -42,105 +81,44 @@ The minimal configuration requires:
 | `shell.aliases` | boolean | `false` | Enable shell aliases |
 | `shell.functions` | boolean | `false` | Enable shell functions |
 
-## Shell Commands
+### Area Configuration
 
-When shell integration is enabled, the following commands become available (assuming default prefix `jm`):
-
-### Navigation Commands
-| Command | Description |
-|---------|-------------|
-| `jm` | Navigate to document root |
-| `jm <pattern>` | Navigate to directory matching pattern |
-| `jm-up` | Navigate up one directory |
-
-### Listing Commands
-| Command | Description |
-|---------|-------------|
-| `jmls` | List contents of document root |
-| `jml` | List contents in long format |
-| `jmll` | List all contents in long format |
-| `jmla` | List all contents including hidden files |
-
-### Search Commands
-| Command | Description |
-|---------|-------------|
-| `jmfind <pattern>` | Find directories matching pattern |
-
-## Shell Completion
-
-Johnny-Mnemonix provides command completion for both Bash and Zsh:
-
-- Directory completion for navigation commands
-- Command completion for all shell functions
-- Pattern completion for search commands
-
-## Example Configuration
-
-Here's a complete example showing how to integrate Johnny-Mnemonix into your Home Manager configuration:
+Areas must follow the Johnny Decimal format:
 
 ```nix
-{
-  inputs = {
-    nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
-    home-manager = {
-      url = "github:nix-community/home-manager";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
-    johnny-mnemonix.url = "github:lessuselesss/johnny-mnemonix";
-  };
-
-  outputs = { self, nixpkgs, home-manager, johnny-mnemonix }: {
-    homeManagerConfigurations.${user} = home-manager.lib.homeManagerConfiguration {
-      pkgs = nixpkgs.legacyPackages.${system};
-      modules = [
-        johnny-mnemonix.homeManagerModules.default
-        {
-          home = {
-            username = "example";
-            homeDirectory = "/home/example";
-            stateVersion = "24.05";
-          };
-
-          johnny-mnemonix = {
-            enable = true;
-            baseDir = "~/Documents";
-            shell = {
-              enable = true;
-              prefix = "jm";
-              aliases = true;
-              functions = true;
-            };
-          };
-        }
-      ];
+areas = {
+  "10-19" = {
+    name = "Personal";
+    categories = {
+      "11" = {
+        name = "Finance";
+        items = {
+          "11.01" = "Budget";
+          "11.02" = "Investments";
+        };
+      };
     };
   };
-}
+};
 ```
 
-## Best Practices
+## Verification
 
-1. **Shell Integration**
-   - Use the default prefix unless you have conflicts
-   - Enable both aliases and functions for full functionality
-   - Add shell completion for better usability
+After configuration:
 
-2. **Directory Structure**
-   - Use the standard `~/Documents` location when possible
-   - Keep paths XDG-compliant
-   - Use absolute paths for critical locations
+1. Run your system update command:
+   - For NixOS: `nixos-rebuild switch`
+   - For Darwin: `darwin-rebuild switch`
+   - For Home Manager: `home-manager switch`
 
-3. **Command Usage**
-   - Use the shell functions for navigation
-   - Leverage completion for faster directory access
-   - Use search commands for quick location finding
+2. Verify directory creation:
+   ```bash
+   ls ~/Documents/10-19\ Personal/11\ Finance/
+   ```
 
-## Integration with Other Tools
-
-Johnny-Mnemonix is designed to work seamlessly with:
-- Home Manager
-- Nix Flakes
-- Git version control
-- XDG Base Directory specification
-
-For more examples and advanced configurations, see the [examples](../examples) directory. 
+3. Test shell commands (if enabled):
+   ```bash
+   jm          # Navigate to base directory
+   jmls        # List contents
+   jm 11.01    # Navigate to specific item
+   ```

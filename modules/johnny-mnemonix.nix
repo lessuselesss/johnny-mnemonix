@@ -18,11 +18,16 @@ with lib; let
         categoryId:
           mkCategoryDirs areaId areaConfig categoryId areaConfig.categories.${categoryId}
       ) (attrNames areaConfig.categories);
-  in
-    concatMapStrings (
+  in ''
+    # Ensure base directory exists first
+    mkdir -p "${cfg.baseDir}"
+
+    # Create area directories
+    ${concatMapStrings (
       areaId:
         mkAreaDir areaId areas.${areaId}
-    ) (attrNames areas);
+    ) (attrNames areas)}
+  '';
 
   # Helper to create shell functions
   mkShellFunctions = prefix: ''
@@ -181,7 +186,9 @@ in {
   config = mkIf cfg.enable (mkMerge [
     {
       home.activation.createJohnnyMnemonixDirs = lib.hm.dag.entryAfter ["writeBoundary"] ''
+        echo "Creating Johnny Mnemonix directories..."
         ${mkAreaDirs cfg.areas}
+        echo "Finished creating directories"
       '';
 
       home.file = {
