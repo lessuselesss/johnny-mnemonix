@@ -16,13 +16,21 @@ with lib; let
       categoryConfig.items;
 
     mkAreaDir = areaId: areaConfig:
-      mapAttrs' (
-        categoryId: categoryConfig:
-          mkCategoryDirs areaId areaConfig categoryId categoryConfig
-      )
-      areaConfig.categories;
+      foldl' (acc: set: acc // set) {} (
+        mapAttrsToList (
+          categoryId: categoryConfig:
+            mkCategoryDirs areaId areaConfig categoryId categoryConfig
+        )
+        areaConfig.categories
+      );
   in
-    mapAttrs mkAreaDir areas;
+    foldl' (acc: set: acc // set) {} (
+      mapAttrsToList (
+        areaId: areaConfig:
+          mkAreaDir areaId areaConfig
+      )
+      areas
+    );
 
   # Helper to create shell functions
   mkShellFunctions = prefix: ''
