@@ -180,10 +180,14 @@ in {
 
   config = mkIf cfg.enable (mkMerge [
     {
-      home.file.".local/share/johnny-mnemonix/.keep".text = "";
-
       home.file = mkMerge [
+        # Keep file
+        {
+          ".local/share/johnny-mnemonix/.keep".text = "";
+        }
+        # Area directories
         (mkAreaDirs cfg.areas)
+        # Shell functions
         {
           ".local/share/johnny-mnemonix/shell-functions.sh" = mkIf cfg.shell.enable {
             text = mkShellFunctions cfg.shell.prefix;
