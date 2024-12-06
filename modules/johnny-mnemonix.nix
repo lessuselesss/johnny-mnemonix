@@ -6,6 +6,24 @@
 with lib; let
   cfg = config.johnny-mnemonix;
 
+  # Helper to create directories
+  mkAreaDirs = areas: let
+    mkCategoryDirs = areaId: areaConfig: categoryId: categoryConfig:
+      mapAttrs' (itemId: itemName: {
+        name = "${cfg.baseDir}/${areaId}-${areaConfig.name}/${categoryId}-${categoryConfig.name}/${itemId}-${itemName}";
+        value.directory = {};
+      })
+      categoryConfig.items;
+
+    mkAreaDir = areaId: areaConfig:
+      mapAttrs' (
+        categoryId: categoryConfig:
+          mkCategoryDirs areaId areaConfig categoryId categoryConfig
+      )
+      areaConfig.categories;
+  in
+    mapAttrs mkAreaDir areas;
+
   # Helper to create shell functions
   mkShellFunctions = prefix: ''
     # Basic navigation
@@ -164,10 +182,15 @@ in {
     {
       home.file.".local/share/johnny-mnemonix/.keep".text = "";
 
-      home.file.".local/share/johnny-mnemonix/shell-functions.sh" = mkIf cfg.shell.enable {
-        text = mkShellFunctions cfg.shell.prefix;
-        executable = true;
-      };
+      home.file = mkMerge [
+        (mkAreaDirs cfg.areas)
+        {
+          ".local/share/johnny-mnemonix/shell-functions.sh" = mkIf cfg.shell.enable {
+            text = mkShellFunctions cfg.shell.prefix;
+            executable = true;
+          };
+        }
+      ];
 
       programs.zsh = mkIf cfg.shell.enable {
         enable = true;
