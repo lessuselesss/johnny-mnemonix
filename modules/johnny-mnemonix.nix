@@ -130,6 +130,34 @@ in {
       aliases = mkEnableOption "shell aliases";
       functions = mkEnableOption "shell functions";
     };
+
+    areas = mkOption {
+      type = types.attrsOf (types.submodule {
+        options = {
+          name = mkOption {
+            type = types.str;
+            description = "Name of the area";
+          };
+          categories = mkOption {
+            type = types.attrsOf (types.submodule {
+              options = {
+                name = mkOption {
+                  type = types.str;
+                  description = "Name of the category";
+                };
+                items = mkOption {
+                  type = types.attrsOf types.str;
+                  description = "Items in the category";
+                };
+              };
+            });
+            description = "Categories within the area";
+          };
+        };
+      });
+      default = {};
+      description = "Areas configuration";
+    };
   };
 
   config = mkIf cfg.enable (mkMerge [
