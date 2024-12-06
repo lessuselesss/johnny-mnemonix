@@ -1,17 +1,69 @@
 {
   config,
   lib,
+  pkgs,
   ...
 }:
 with lib; let
   cfg = config.johnny-mnemonix;
 
-  # Helper to create directories
+  # Add new types for Git repository items
+  gitItemType = types.submodule {
+    options = {
+      url = mkOption {
+        type = types.str;
+        description = "Git repository URL";
+      };
+      ref = mkOption {
+        type = types.str;
+        default = "main";
+        description = "Git reference (branch, tag, or commit)";
+      };
+      # Optional: Add sparse checkout patterns
+      sparse = mkOption {
+        type = types.listOf types.str;
+        default = [];
+        description = "Sparse checkout patterns (empty for full checkout)";
+      };
+    };
+  };
+
+  # Modified item type to support both strings and git repos
+  itemType = types.either types.str gitItemType;
+
+  # Helper to create directories and clone repositories
   mkAreaDirs = areas: let
     mkCategoryDirs = areaId: areaConfig: categoryId: categoryConfig:
-      concatMapStrings (itemId: ''
-        mkdir -p "${cfg.baseDir}/${areaId}-${areaConfig.name}/${categoryId}-${categoryConfig.name}/${itemId}-${categoryConfig.items.${itemId}}"
-      '') (attrNames categoryConfig.items);
+      concatMapStrings (itemId: let
+        itemConfig = categoryConfig.items.${itemId};
+        itemPath = "${cfg.baseDir}/${areaId}-${areaConfig.name}/${categoryId}-${categoryConfig.name}/${itemId}";
+      in
+        if isString itemConfig
+        then ''
+          mkdir -p "${itemPath}-${itemConfig}"
+        ''
+        else ''
+          # Create parent directory if it doesn't exist
+          mkdir -p "$(dirname "${itemPath}")"
+
+          # Check if repo already exists
+          if [ ! -d "${itemPath}" ]; then
+            # Clone the repository
+            ${pkgs.git}/bin/git clone ${
+            if itemConfig.sparse != []
+            then "--sparse"
+            else ""
+          } \
+              --branch ${itemConfig.ref} \
+              ${itemConfig.url} "${itemPath}"
+
+            # Configure sparse checkout if needed
+            ${optionalString (itemConfig.sparse != []) ''
+            cd "${itemPath}"
+            ${pkgs.git}/bin/git sparse-checkout set ${concatStringsSep " " itemConfig.sparse}
+          ''}
+          fi
+        '') (attrNames categoryConfig.items);
 
     mkAreaDir = areaId: areaConfig:
       concatMapStrings (
@@ -169,8 +221,8 @@ in {
                   description = "Name of the category";
                 };
                 items = mkOption {
-                  type = types.attrsOf types.str;
-                  description = "Items in the category";
+                  type = types.attrsOf itemType;
+                  description = "Items in the category (string or git repository)";
                 };
               };
             });

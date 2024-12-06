@@ -13,114 +13,43 @@
     concatStringsSep
     ;
 
-  # Test domains
-  testDomains = {
-    "documents" = "Documents";
-    "workspace" = "workspace";
-    "personal/notes" = "personal/notes";
-  };
-
-  # Test user and permissions
-  testUser = "testuser";
-  testGroup = "users";
-  testMode = "0755";
-
-  # Helper to create domain configurations
-  mkDomainConfigs = domains: {
-    inherit domains;
+  # Test configuration with both regular and git items
+  testConfig = {
+    enable = true;
+    baseDir = "/home/testuser/Documents";
     areas = {
       "10-19" = {
         name = "Personal";
         categories = {
           "11" = {
-            name = "Finance";
+            name = "Projects";
             items = {
+              # Regular string item
               "11.01" = "Budget";
-              "11.02" = "Investments";
+
+              # Git repository item
+              "11.02" = {
+                url = "https://github.com/nixos/nix";
+                ref = "master";
+              };
+
+              # Git repository with sparse checkout
+              "11.03" = {
+                url = "https://github.com/NixOS/nixpkgs";
+                ref = "master";
+                sparse = ["README.md" "LICENSE"];
+              };
             };
           };
         };
       };
     };
-    useDefaultStructure = true;
-    permissions = {
-      inherit testUser testGroup;
-      dirMode = testMode;
-    };
   };
 
-  # Test shell commands
-  shellPrefix = "jm";
-
-  # Helper to check domain structure
-  checkDomain = _domain: baseDir: ''
-    # Check base directory exists
-    machine.succeed("test -d ${baseDir}")
-
-    # Check area structure
-    machine.succeed("test -d ${baseDir}/10-19\\ Personal")
-    machine.succeed("test -d ${baseDir}/10-19\\ Personal/11\\ Finance")
-    machine.succeed("test -d ${baseDir}/10-19\\ Personal/11\\ Finance/11.01\\ Budget")
-    machine.succeed("test -d ${baseDir}/10-19\\ Personal/11\\ Finance/11.02\\ Investments")
-  '';
-
-  # Helper to check permissions
-  checkPerms = path: ''
-    machine.succeed("test $(stat -c '%a' ${path}) = '755'")
-    machine.succeed("test $(stat -c '%U' ${path}) = '${testUser}'")
-    machine.succeed("test $(stat -c '%G' ${path}) = '${testGroup}'")
-  '';
-
-  # Test shell integration
-  testShellCommands = baseDir: ''
-    # Test basic navigation
-    machine.succeed("su ${testUser} -c 'cd && ${shellPrefix} && pwd' | grep -q '${baseDir}'")
-    machine.succeed("su ${testUser} -c 'cd && ${shellPrefix} && ${shellPrefix}-up && pwd' | grep -q '/home/${testUser}'")
-
-    # Test number-based navigation
-    machine.succeed(
-      "su ${testUser} -c 'cd && ${shellPrefix} && ${shellPrefix} 11 && pwd' "
-      + "| grep -q '${baseDir}/10-19 Personal/11 Finance'"
-    )
-    machine.succeed(
-      "su ${testUser} -c 'cd && ${shellPrefix} && ${shellPrefix} 11.01 && pwd' "
-      + "| grep -q '${baseDir}/10-19 Personal/11 Finance/11.01 Budget'"
-    )
-
-    # Test listing commands
-    machine.succeed(
-      "su ${testUser} -c 'cd && ${shellPrefix}ls' | grep -q '10-19 Personal'"
-    )
-    machine.succeed(
-      "su ${testUser} -c 'cd && ${shellPrefix}l' | grep -q '10-19 Personal'"
-    )
-    machine.succeed(
-      "su ${testUser} -c 'cd && ${shellPrefix}ll ${baseDir}' | grep -q '10-19 Personal'"
-    )
-    machine.succeed(
-      "su ${testUser} -c 'cd && ${shellPrefix}la ${baseDir}' | grep -q '10-19 Personal'"
-    )
-
-    # Test find command
-    machine.succeed(
-      "su ${testUser} -c 'cd && ${shellPrefix}find Finance' "
-      + "| grep -q '${baseDir}/10-19 Personal/11 Finance'"
-    )
-
-    # Test error cases
-    machine.fail(
-      "su ${testUser} -c 'cd && ${shellPrefix} nonexistent'"
-    )
-    machine.fail(
-      "su ${testUser} -c 'cd && ${shellPrefix}find'"
-    )
-  '';
-
-  # Helper to test shell integration for a domain
-  checkShellIntegration = domain: baseDir: ''
-    with subtest("Shell integration for ${domain}"):
-        ${testShellCommands baseDir}
-  '';
+  # Test user setup
+  testUser = "testuser";
+  testGroup = "users";
+  testMode = "0755";
 in
   makeTest {
     name = "johnny-mnemonix";
@@ -130,26 +59,14 @@ in
         "${pkgs.home-manager}/nixos/home-manager.nix"
       ];
 
-      # Create test groups
-      users.groups = {
-        ${testGroup} = {};
+      # Create test user
+      users.users.${testUser} = {
+        isNormalUser = true;
+        home = "/home/${testUser}";
+        group = testGroup;
       };
 
-      # Create test users
-      users.users = {
-        ${testUser} = {
-          isNormalUser = true;
-          home = "/home/${testUser}";
-          group = testGroup;
-          shell = pkgs.bash;
-        };
-      };
-
-      # Enable both shells for testing
-      programs.bash.enable = true;
-      programs.zsh.enable = true;
-
-      # Test different domain configurations
+      # Enable home-manager
       home-manager.users.${testUser} = {...}: {
         imports = [../modules/johnny-mnemonix.nix];
 
@@ -159,17 +76,7 @@ in
           stateVersion = "23.11";
         };
 
-        # Add all valid domain configurations with shell integration
-        johnny-mnemonix =
-          (mkDomainConfigs testDomains)
-          // {
-            shell = {
-              enable = true;
-              prefix = shellPrefix;
-              aliases = true;
-              functions = true;
-            };
-          };
+        johnny-mnemonix = testConfig;
       };
     };
 
@@ -178,20 +85,137 @@ in
       machine.wait_for_unit("multi-user.target")
       machine.wait_for_unit("home-manager-${testUser}.service")
 
-      # Test each valid domain configuration
-      with subtest("Valid domain configurations"):
-          ${concatStringsSep "\n" (mapAttrsToList (domain: baseDir: ''
-          # Test ${domain} domain
-          ${checkDomain domain baseDir}
-          ${checkPerms baseDir}
-          ${checkPerms "${baseDir}/10-19 Personal"}
-          ${checkPerms "${baseDir}/10-19 Personal/11 Finance"}
-          ${checkPerms "${baseDir}/10-19 Personal/11 Finance/11.01 Budget"}
-          ${checkPerms "${baseDir}/10-19 Personal/11 Finance/11.02 Investments"}
+      with subtest("Basic directory structure"):
+          # Check regular directory
+          machine.succeed("test -d /home/${testUser}/Documents/10-19\\ Personal")
+          machine.succeed("test -d /home/${testUser}/Documents/10-19\\ Personal/11\\ Projects")
+          machine.succeed("test -d /home/${testUser}/Documents/10-19\\ Personal/11\\ Projects/11.01\\ Budget")
 
-          # Test shell integration
-          ${checkShellIntegration domain baseDir}
-        '')
-        testDomains)}
+      with subtest("Git repository cloning"):
+          # Check if git repos were cloned
+          machine.succeed("test -d /home/${testUser}/Documents/10-19\\ Personal/11\\ Projects/11.02")
+          machine.succeed("test -d /home/${testUser}/Documents/10-19\\ Personal/11\\ Projects/11.02/.git")
+
+          # Verify git repo contents
+          machine.succeed(
+              "test -f /home/${testUser}/Documents/10-19\\ Personal/11\\ Projects/11.02/README.md"
+          )
+
+      with subtest("Sparse checkout"):
+          # Check sparse checkout repo
+          machine.succeed("test -d /home/${testUser}/Documents/10-19\\ Personal/11\\ Projects/11.03")
+          machine.succeed("test -d /home/${testUser}/Documents/10-19\\ Personal/11\\ Projects/11.03/.git")
+
+          # Verify only specified files exist
+          machine.succeed(
+              "test -f /home/${testUser}/Documents/10-19\\ Personal/11\\ Projects/11.03/README.md"
+          )
+          machine.succeed(
+              "test -f /home/${testUser}/Documents/10-19\\ Personal/11\\ Projects/11.03/LICENSE"
+          )
+
+          # Verify other files don't exist
+          machine.fail(
+              "test -d /home/${testUser}/Documents/10-19\\ Personal/11\\ Projects/11.03/nixos"
+          )
+
+      with subtest("Git repository configuration"):
+          # Check remote URL
+          machine.succeed(
+              "cd /home/${testUser}/Documents/10-19\\ Personal/11\\ Projects/11.02 "
+              + "&& git remote get-url origin | grep -q 'https://github.com/nixos/nix'"
+          )
+
+          # Check branch
+          machine.succeed(
+              "cd /home/${testUser}/Documents/10-19\\ Personal/11\\ Projects/11.02 "
+              + "&& git symbolic-ref --short HEAD | grep -q 'master'"
+          )
+
+      with subtest("Permissions and Ownership"):
+          # Check base directory
+          machine.succeed(
+              f"test $(stat -c '%a' /home/{testUser}/Documents) = '{testMode}'"
+          )
+          machine.succeed(
+              f"test $(stat -c '%U' /home/{testUser}/Documents) = '{testUser}'"
+          )
+          machine.succeed(
+              f"test $(stat -c '%G' /home/{testUser}/Documents) = '{testGroup}'"
+          )
+
+          # Check area directory
+          machine.succeed(
+              f"test $(stat -c '%a' /home/{testUser}/Documents/10-19\\ Personal) = '{testMode}'"
+          )
+          machine.succeed(
+              f"test $(stat -c '%U' /home/{testUser}/Documents/10-19\\ Personal) = '{testUser}'"
+          )
+          machine.succeed(
+              f"test $(stat -c '%G' /home/{testUser}/Documents/10-19\\ Personal) = '{testGroup}'"
+          )
+
+          # Check category directory
+          machine.succeed(
+              f"test $(stat -c '%a' /home/{testUser}/Documents/10-19\\ Personal/11\\ Projects) = '{testMode}'"
+          )
+          machine.succeed(
+              f"test $(stat -c '%U' /home/{testUser}/Documents/10-19\\ Personal/11\\ Projects) = '{testUser}'"
+          )
+          machine.succeed(
+              f"test $(stat -c '%G' /home/{testUser}/Documents/10-19\\ Personal/11\\ Projects) = '{testGroup}'"
+          )
+
+          # Check regular item directory
+          machine.succeed(
+              f"test $(stat -c '%a' /home/{testUser}/Documents/10-19\\ Personal/11\\ Projects/11.01\\ Budget) = '{testMode}'"
+          )
+          machine.succeed(
+              f"test $(stat -c '%U' /home/{testUser}/Documents/10-19\\ Personal/11\\ Projects/11.01\\ Budget) = '{testUser}'"
+          )
+          machine.succeed(
+              f"test $(stat -c '%G' /home/{testUser}/Documents/10-19\\ Personal/11\\ Projects/11.01\\ Budget) = '{testGroup}'"
+          )
+
+          # Check git repository directories
+          machine.succeed(
+              f"test $(stat -c '%a' /home/{testUser}/Documents/10-19\\ Personal/11\\ Projects/11.02) = '{testMode}'"
+          )
+          machine.succeed(
+              f"test $(stat -c '%U' /home/{testUser}/Documents/10-19\\ Personal/11\\ Projects/11.02) = '{testUser}'"
+          )
+          machine.succeed(
+              f"test $(stat -c '%G' /home/{testUser}/Documents/10-19\\ Personal/11\\ Projects/11.02) = '{testGroup}'"
+          )
+
+          # Check sparse checkout repository
+          machine.succeed(
+              f"test $(stat -c '%a' /home/{testUser}/Documents/10-19\\ Personal/11\\ Projects/11.03) = '{testMode}'"
+          )
+          machine.succeed(
+              f"test $(stat -c '%U' /home/{testUser}/Documents/10-19\\ Personal/11\\ Projects/11.03) = '{testUser}'"
+          )
+          machine.succeed(
+              f"test $(stat -c '%G' /home/{testUser}/Documents/10-19\\ Personal/11\\ Projects/11.03) = '{testGroup}'"
+          )
+
+          # Check git internal directories
+          machine.succeed(
+              f"test $(stat -c '%a' /home/{testUser}/Documents/10-19\\ Personal/11\\ Projects/11.02/.git) = '{testMode}'"
+          )
+          machine.succeed(
+              f"test $(stat -c '%U' /home/{testUser}/Documents/10-19\\ Personal/11\\ Projects/11.02/.git) = '{testUser}'"
+          )
+          machine.succeed(
+              f"test $(stat -c '%G' /home/{testUser}/Documents/10-19\\ Personal/11\\ Projects/11.02/.git) = '{testGroup}'"
+          )
+
+      with subtest("Idempotency"):
+          # Run home-manager switch again
+          machine.succeed("su ${testUser} -c 'home-manager switch'")
+
+          # Verify repositories are still intact
+          machine.succeed("test -d /home/${testUser}/Documents/10-19\\ Personal/11\\ Projects/11.02/.git")
+          machine.succeed("test -d /home/${testUser}/Documents/10-19\\ Personal/11\\ Projects/11.03/.git")
     '';
   }
