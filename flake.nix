@@ -37,7 +37,7 @@
         pre-commit-check = pre-commit-hooks.lib.${system}.run {
           src = ./.;
           hooks = {
-            # nixpkgs-fmt.enable = true;  # Temporarily disabled
+            alejandra.enable = true;
             statix.enable = true;
             deadnix.enable = true;
             nil.enable = true;
@@ -53,7 +53,7 @@
         pkgs.mkShell {
           inherit (pre-commit-check) shellHook;
           buildInputs = with pkgs; [
-            nixfmt-classic
+            alejandra
             nil
             statix
             deadnix
@@ -87,7 +87,7 @@
       pre-commit-check = pre-commit-hooks.lib.${system}.run {
         src = ./.;
         hooks = {
-          # nixpkgs-fmt.enable = true;  # Temporarily disabled
+          alejandra.enable = true;
           statix.enable = true;
           deadnix.enable = true;
           nil.enable = true;
