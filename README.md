@@ -21,12 +21,12 @@ When enabled, Johnny-Mnemonix creates the following structure:
 
 ```
 $HOMEOFFICE/ #($HOME/Documents/)
-├── 10-19 Work/ (Area)
-│   ├── ...
-│   ├── 15 Travel/ (Category) 
-│   │   ├── ...
-│   │   ├── 15.51 ... (ID)
-│   │   └── 15.52 Trip to NYC/ (ID with Title)
+├── 10-19 Area/
+│   ├── .../
+│   ├── 15 Category/
+│   │   ├── .../
+│   │   ├── 15.51 .../
+│   │   └── 15.52 ID/
 │   └── ...
 └── ...
 ```
