@@ -1,159 +1,92 @@
 # About Johnny-Mnemonix
 
-## What is Johnny-Mnemonix?
+## Philosophy
 
-Johnny-Mnemonix is a declarative document management system built on the principles of the Johnny Decimal system, implemented as a Nix Home Manager module. It combines the power of Nix's declarative configuration with the organizational clarity of Johnny Decimal to create a reproducible, maintainable document management solution.
+Johnny-Mnemonix combines two powerful ideas:
+1. The organizational clarity of the Johnny.Decimal system
+2. The reproducibility and declarative nature of Nix
 
-## Why Johnny-Mnemonix?
+The goal is to make document management both systematic and reproducible across systems, while maintaining the flexibility to adapt to individual needs.
 
-### The Problem
+## Core Concepts
 
-Document management is often:
-- Inconsistent across systems
-- Hard to maintain over time
-- Difficult to reproduce
-- Prone to entropy and disorder
+### Johnny.Decimal System
 
-### The Solution
+The Johnny.Decimal system organizes information into a three-level hierarchy:
 
-Johnny-Mnemonix addresses these issues by:
-- Providing a declarative configuration
-- Enforcing consistent structure
-- Making organization reproducible
-- Integrating with existing tools
+1. **Areas (10-19, 20-29, etc.)**
+   - High level and distinct domains of your information
+   - Like shelves in a bookcase
+   - Each spans a range of numbers, the first number being the constant among the range (e.g., 10-19)
 
-## Core Principles
+2. **Categories (11.xx, 12.xx, etc.)**
+   - Specific groupings within areas
+   - Like boxes (box-sets) on the shelves
+   - Two-digit numbers within the area's range
 
-1. **Declarative Configuration**
-   - Define structure in code
-   - Version control friendly
-   - Reproducible across systems
+3. **IDs (11.01, 11.02, etc.)**
+   - Individual locations for items
+   - Like books in the boxes
+   - Format: Category.Index (e.g., 11.01)
 
-2. **Johnny Decimal System**
-   - Clear numerical structure
-   - Intuitive organization
-   - Easy navigation
+### Nix Integration
 
-3. **Nix Integration**
-   - Home Manager module
-   - Pure functional approach
-   - Reproducible builds
+Johnny-Mnemonix leverages Nix to make this system:
 
-## System Design
+- **Declarative**: Your entire document structure is defined in code
+- **Reproducible**: The same structure can be recreated on any system
+- **Verifiable**: Built-in tests ensure your structure remains valid
+- **Portable**: Works across Linux and Darwin systems
+- **Integrated**: Works seamlessly with Home Manager
 
-### Architecture
+### Shell Integration
 
-```
-Johnny-Mnemonix
-├── Configuration (Nix)
-│   ├── Structure Definition
-│   ├── Validation Rules
-│   └── Shell Integration
-├── File System
-│   ├── Directory Creation
-│   ├── Permission Management
-│   └── Structure Maintenance
-└── User Interface
-    ├── Shell Aliases
-    ├── Navigation Tools
-    └── Utility Functions
+The project provides intuitive shell commands for navigation:
+
+```bash
+# Navigate to document root
+jm
+
+# Jump to specific locations
+jm 11.01   # Goes to first item in category 11
+jm finance  # Fuzzy finds finance-related directories
+
+# List and search
+jmls        # List document root
+jmfind tax  # Find tax-related directories
 ```
 
-### Key Components
+## Why "Mnemonix"?
 
-1. **Configuration Module**
-   - Define document structure
-   - Set base directory
-   - Configure shell integration
+The name combines three elements:
+1. **Johnny** - From Johnny.Decimal, the organizational system
+2. **Mnemonic** - Greek for "memory aid" (the system helps remember locations)
+3. **Nix** - The package manager and system configuration tool
 
-2. **Validation System**
-   - Enforce Johnny Decimal rules
-   - Validate structure
-   - Prevent errors
+It's also a nod to William Gibson's "Johnny Mnemonic" - a character who, like our system, helps manage and organize digital information.
 
-3. **Directory Management**
-   - Create directory structure
-   - Maintain permissions
-   - Handle updates
+## Design Principles
 
-## Use Cases
+1. **Non-destructive**
+   - Never deletes existing files
+   - Safely merges with existing structures
+   - Preserves user data
 
-### Personal Document Management
-- Organize personal files
-- Manage financial documents
-- Track health records
+2. **Minimal Configuration**
+   - Sensible defaults
+   - Only configure what you need
+   - Clear, focused options
 
-### Professional Organization
-- Project documentation
-- Client files
-- Administrative documents
+3. **Shell-First**
+   - Fast command-line navigation
+   - Tab completion
+   - Fuzzy finding
 
-### Academic Use
-- Research papers
-- Data organization
-- Study materials
+4. **XDG Compliant**
+   - Follows XDG Base Directory specification
+   - Respects system conventions
+   - Clean home directory
 
-### Creative Projects
-- Writing projects
-- Design files
-- Media organization
+## Getting Started
 
-## Future Development
-
-### Planned Features
-1. **Enhanced Integration**
-   - Git integration
-   - Cloud sync support
-   - Additional shell tools
-
-2. **Advanced Features**
-   - Search functionality
-   - Metadata management
-   - Tagging system
-
-3. **User Interface**
-   - CLI tools
-   - TUI interface
-   - Status reporting
-
-### Community Involvement
-
-We welcome:
-- Feature requests
-- Bug reports
-- Code contributions
-- Documentation improvements
-
-## Project Philosophy
-
-1. **Simplicity**
-   - Clear configuration
-   - Straightforward usage
-   - Minimal dependencies
-
-2. **Reliability**
-   - Thorough validation
-   - Safe operations
-   - Consistent behavior
-
-3. **Extensibility**
-   - Modular design
-   - Plugin system
-   - Custom integrations
-
-## Getting Involved
-
-### Ways to Contribute
-- Code contributions
-- Documentation
-- Bug reports
-- Feature requests
-
-### Community
-- GitHub discussions
-- Issue tracker
-- Pull requests
-
-## License
-
-Johnny-Mnemonix is released under the MIT License. See the LICENSE file for details. 
+See our [Configuration Guide](./configuration.md) for detailed setup instructions, or check out the [examples](../examples) directory for quick-start configurations.

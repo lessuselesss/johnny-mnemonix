@@ -5,25 +5,20 @@ This guide explains how to configure Johnny-Mnemonix for your document managemen
 ## Basic Configuration
 
 The minimal configuration requires:
-1. Enabling the module
-2. Defining at least one area
+1. Adding Johnny-Mnemonix to your flake inputs
+2. Enabling the module in your Home Manager configuration
+3. Configuring basic options
 
 ```nix
 {
   johnny-mnemonix = {
     enable = true;
-    areas = {
-      "10-19" = {
-        name = "Personal";
-        categories = {
-          "11" = {
-            name = "Finance";
-            items = {
-              "11.01" = "Budget";
-            };
-          };
-        };
-      };
+    baseDir = "~/Documents";
+    shell = {
+      enable = true;
+      prefix = "jm";  # Optional: customize command prefix
+      aliases = true;
+      functions = true;
     };
   };
 }
@@ -38,87 +33,114 @@ The minimal configuration requires:
 | `enable` | boolean | `false` | Enable Johnny Mnemonix |
 | `baseDir` | string | `"$HOME/Documents"` | Base directory for document structure |
 
-### Area Configuration
+### Shell Integration Options
 
-Areas must follow these rules:
-- IDs must be in format `XX-YY` (e.g., "10-19")
-- Names should be descriptive
-- Areas should be logically grouped (e.g., 10-19 for Personal, 20-29 for Work)
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `shell.enable` | boolean | `false` | Enable shell integration |
+| `shell.prefix` | string | `"jm"` | Command prefix for shell functions |
+| `shell.aliases` | boolean | `false` | Enable shell aliases |
+| `shell.functions` | boolean | `false` | Enable shell functions |
 
-Example:
+## Shell Commands
+
+When shell integration is enabled, the following commands become available (assuming default prefix `jm`):
+
+### Navigation Commands
+| Command | Description |
+|---------|-------------|
+| `jm` | Navigate to document root |
+| `jm <pattern>` | Navigate to directory matching pattern |
+| `jm-up` | Navigate up one directory |
+
+### Listing Commands
+| Command | Description |
+|---------|-------------|
+| `jmls` | List contents of document root |
+| `jml` | List contents in long format |
+| `jmll` | List all contents in long format |
+| `jmla` | List all contents including hidden files |
+
+### Search Commands
+| Command | Description |
+|---------|-------------|
+| `jmfind <pattern>` | Find directories matching pattern |
+
+## Shell Completion
+
+Johnny-Mnemonix provides command completion for both Bash and Zsh:
+
+- Directory completion for navigation commands
+- Command completion for all shell functions
+- Pattern completion for search commands
+
+## Example Configuration
+
+Here's a complete example showing how to integrate Johnny-Mnemonix into your Home Manager configuration:
+
 ```nix
-areas = {
-  "10-19" = {
-    name = "Personal";
-    categories = { ... };
+{
+  inputs = {
+    nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
+    home-manager = {
+      url = "github:nix-community/home-manager";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+    johnny-mnemonix.url = "github:lessuselesss/johnny-mnemonix";
   };
-};
-```
 
-### Category Configuration
+  outputs = { self, nixpkgs, home-manager, johnny-mnemonix }: {
+    homeManagerConfigurations.${user} = home-manager.lib.homeManagerConfiguration {
+      pkgs = nixpkgs.legacyPackages.${system};
+      modules = [
+        johnny-mnemonix.homeManagerModules.default
+        {
+          home = {
+            username = "example";
+            homeDirectory = "/home/example";
+            stateVersion = "24.05";
+          };
 
-Categories must follow these rules:
-- IDs must be two digits (e.g., "11")
-- IDs should fall within their parent area's range
-- Names should be clear and specific
-
-Example:
-```nix
-categories = {
-  "11" = {
-    name = "Finance";
-    items = { ... };
+          johnny-mnemonix = {
+            enable = true;
+            baseDir = "~/Documents";
+            shell = {
+              enable = true;
+              prefix = "jm";
+              aliases = true;
+              functions = true;
+            };
+          };
+        }
+      ];
+    };
   };
-};
+}
 ```
-
-### Item Configuration
-
-Items must follow these rules:
-- IDs must be in format `XX.YY` (e.g., "11.01")
-- First two digits must match parent category
-- Names should be specific and descriptive
-
-Example:
-```nix
-items = {
-  "11.01" = "Budget";
-  "11.02" = "Investments";
-};
-```
-
-## Shell Integration
-
-Johnny-Mnemonix provides shell aliases for easy navigation:
-
-| Alias | Description |
-|-------|-------------|
-| `jd` | Navigate to document root |
 
 ## Best Practices
 
-1. **Consistent Naming**
-   - Use clear, descriptive names
-   - Maintain consistent naming conventions
-   - Avoid special characters in names
+1. **Shell Integration**
+   - Use the default prefix unless you have conflicts
+   - Enable both aliases and functions for full functionality
+   - Add shell completion for better usability
 
-2. **Logical Organization**
-   - Group related items together
-   - Use areas for broad categories
-   - Use categories for specific groupings
+2. **Directory Structure**
+   - Use the standard `~/Documents` location when possible
+   - Keep paths XDG-compliant
+   - Use absolute paths for critical locations
 
-3. **ID Management**
-   - Keep IDs sequential when possible
-   - Leave gaps for future additions
-   - Follow the XX-YY format strictly
+3. **Command Usage**
+   - Use the shell functions for navigation
+   - Leverage completion for faster directory access
+   - Use search commands for quick location finding
 
-4. **Directory Structure**
-   - Don't manually modify created directories
-   - Use the configuration to make changes
-   - Keep the structure flat (max 3 levels)
+## Integration with Other Tools
 
-## Examples
+Johnny-Mnemonix is designed to work seamlessly with:
+- Home Manager
+- Nix Flakes
+- Git version control
+- XDG Base Directory specification
 
-See the [examples](../examples) directory for complete configuration examples:
-- [Basic Configuration](../examples/basic/flake.nix)
-- [Full Configuration](../examples/full/flake.nix) 
+For more examples and advanced configurations, see the [examples](../examples) directory. 
