@@ -14,6 +14,12 @@
       url = "github:loqusion/typix";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+
+    # Add pre-commit-hooks
+    pre-commit-hooks = {
+      url = "github:cachix/pre-commit-hooks.nix";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
   };
 
   outputs = {
@@ -21,6 +27,7 @@
     nixpkgs,
     home-manager,
     typix,
+    pre-commit-hooks,
     ...
   }: let
     supportedSystems = ["x86_64-linux" "aarch64-linux" "x86_64-darwin" "aarch64-darwin"];
@@ -34,11 +41,30 @@
     devShells = forAllSystems (system: {
       default = let
         pkgs = nixpkgs.legacyPackages.${system};
+        pre-commit-check = pre-commit-hooks.lib.${system}.run {
+          src = ./.;
+          hooks = {
+            nixpkgs-fmt.enable = true;
+            statix.enable = true;
+            deadnix.enable = true;
+            nil.enable = true;
+            # Check that flake.nix is valid
+            flake-check = {
+              enable = true;
+              name = "flake-check";
+              entry = "${pkgs.nix}/bin/nix flake check";
+              pass_filenames = false;
+            };
+          };
+        };
       in
         pkgs.mkShell {
+          inherit (pre-commit-check) shellHook;
           buildInputs = with pkgs; [
             nixfmt # Nix formatter
             nil # Nix LSP
+            statix # Nix linter
+            deadnix # Find dead Nix code
           ];
         };
     });
