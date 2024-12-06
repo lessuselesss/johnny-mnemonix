@@ -1,20 +1,9 @@
-{
-  config,
-  lib,
-  pkgs,
-  ...
+{ config
+, lib
+, ...
 }:
 with lib; let
   cfg = config.johnny-mnemonix;
-
-  # Type for Johnny Decimal ID (e.g., "11.01")
-  jdIdType = types.strMatching "[0-9]{2}[.][0-9]{2}";
-
-  # Type for Category ID (e.g., "11")
-  categoryIdType = types.strMatching "[0-9]{2}";
-
-  # Type for Area ID (e.g., "10-19")
-  areaIdType = types.strMatching "[0-9]{2}-[0-9]{2}";
 
   # Type for a single item (ID + name)
   itemType = types.attrsOf types.str;
@@ -52,7 +41,36 @@ with lib; let
       };
     };
   };
-in {
+
+  # Helper function to create directory paths
+  mkDirPath = _: area: _: category: id: name: "${cfg.baseDir}/${area.name}/${category.name}/${id} ${name}";
+
+  # Helper function to create directory entries for a single item
+  mkItemDir = areaId: area: catId: category: id: name: {
+    "${mkDirPath areaId area catId category id name}".source = null;
+  };
+
+  # Helper function to process all items in a category
+  mkCategoryDirs = areaId: area: catId: category:
+    mapAttrsToList
+      (id: name: mkItemDir areaId area catId category id name)
+      category.items;
+
+  # Helper function to process all categories in an area
+  mkAreaDirs = areaId: area:
+    concatLists
+      (mapAttrsToList
+        (catId: category: mkCategoryDirs areaId area catId category)
+        area.categories);
+
+  # Create all directory entries
+  mkDirs =
+    foldAttrs
+      (x: _: x)
+      { }
+      (concatLists (mapAttrsToList mkAreaDirs cfg.areas));
+in
+{
   options.johnny-mnemonix = {
     enable = mkEnableOption "Johnny Decimal document management";
 
@@ -64,34 +82,14 @@ in {
 
     areas = mkOption {
       type = types.attrsOf areaType;
-      default = {};
+      default = { };
       description = "Map of area IDs to area configurations";
     };
   };
 
   config = mkIf cfg.enable {
-    # Create the base directory
-    home.file = let
-      # Helper function to create directory paths
-      mkDirPath = area: category: id: name: "${cfg.baseDir}/${area.name}/${category.name}/${id} ${name}";
-
-      # Create all directory entries
-      mkDirs = foldAttrs (n: a: n) {} (
-        concatLists (mapAttrsToList (
-            areaId: area:
-              concatLists (mapAttrsToList (
-                  catId: category:
-                    mapAttrsToList (id: name: {
-                      "${mkDirPath areaId area catId category id name}".source = null;
-                    })
-                    category.items
-                )
-                area.categories)
-          )
-          cfg.areas)
-      );
-    in
-      mkDirs;
+    # Create the base directory structure
+    home.file = mkDirs;
 
     # Add shell aliases
     programs.bash.shellAliases = {

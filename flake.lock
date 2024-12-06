@@ -116,28 +116,7 @@
       "inputs": {
         "home-manager": "home-manager",
         "nixpkgs": "nixpkgs",
-        "pre-commit-hooks": "pre-commit-hooks",
-        "typix": "typix"
-      }
-    },
-    "typix": {
-      "inputs": {
-        "nixpkgs": [
-          "nixpkgs"
-        ]
-      },
-      "locked": {
-        "lastModified": 1733421967,
-        "narHash": "sha256-I3XHY5MQi+2ujBDS01BIRaXNxYce+tHoePpG2pMASDA=",
-        "owner": "loqusion",
-        "repo": "typix",
-        "rev": "c72c696e02fdac53d69d6b59517da73061342378",
-        "type": "github"
-      },
-      "original": {
-        "owner": "loqusion",
-        "repo": "typix",
-        "type": "github"
+        "pre-commit-hooks": "pre-commit-hooks"
       }
     }
   },
