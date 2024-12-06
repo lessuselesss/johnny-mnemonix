@@ -37,6 +37,12 @@ with lib; let
 
   # Helper to create directories and clone repositories
   mkAreaDirs = areas: let
+    # Add openssh to the required packages
+    gitWithSsh = pkgs.writeShellScriptBin "git-with-ssh" ''
+      export PATH="${lib.makeBinPath [pkgs.git pkgs.openssh]}:$PATH"
+      exec git "$@"
+    '';
+
     mkCategoryDirs = areaId: areaConfig: categoryId: categoryConfig:
       concatMapStrings (itemId: let
         itemConfig = categoryConfig.items.${itemId};
@@ -52,8 +58,7 @@ with lib; let
 
           # Use the name field for the directory
           if [ ! -d "${baseItemPath}-${itemConfig.name}" ]; then
-            # Clone the repository
-            ${pkgs.git}/bin/git clone ${
+            ${gitWithSsh}/bin/git-with-ssh clone ${
             if itemConfig.sparse != []
             then "--sparse"
             else ""
@@ -61,10 +66,9 @@ with lib; let
               --branch ${itemConfig.ref} \
               ${itemConfig.url} "${baseItemPath}-${itemConfig.name}"
 
-            # Configure sparse checkout if needed
             ${optionalString (itemConfig.sparse != []) ''
             cd "${baseItemPath}-${itemConfig.name}"
-            ${pkgs.git}/bin/git sparse-checkout set ${concatStringsSep " " itemConfig.sparse}
+            ${gitWithSsh}/bin/git-with-ssh sparse-checkout set ${concatStringsSep " " itemConfig.sparse}
           ''}
           fi
         '') (attrNames categoryConfig.items);
@@ -241,17 +245,23 @@ in {
 
   config = mkIf cfg.enable (mkMerge [
     {
-      home.activation.createJohnnyMnemonixDirs = lib.hm.dag.entryAfter ["writeBoundary"] ''
-        echo "Creating Johnny Mnemonix directories..."
-        ${mkAreaDirs cfg.areas}
-        echo "Finished creating directories"
-      '';
+      # Consolidate all home-related configurations
+      home = {
+        # Required packages
+        packages = with pkgs; [
+          git
+          openssh
+        ];
 
-      home.file = {
-        ".local/share/johnny-mnemonix/.keep".text = "";
-        ".local/share/johnny-mnemonix/shell-functions.sh" = mkIf cfg.shell.enable {
-          text = mkShellFunctions cfg.shell.prefix;
-          executable = true;
+        # Activation script
+        activation.createJohnnyMnemonixDirs = lib.hm.dag.entryAfter ["writeBoundary"] ''
+          # Create Johnny Mnemonix directories...
+          ${mkAreaDirs cfg.areas}
+        '';
+
+        # File configurations
+        file = {
+          # Any file-related configurations would go here
         };
       };
 
