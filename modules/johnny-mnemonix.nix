@@ -96,16 +96,35 @@ with lib; let
     {}
     (concatLists (mapAttrsToList mkAreaDirs cfg.areas));
 
-  # Domain options
-  domainType = types.enum [
-    "documents"
-    "pictures"
-    "videos"
-    "music"
-    "downloads"
-    "desktop"
-    "public"
-  ];
+  # Enhanced domain type to support custom paths
+  domainType = with types;
+    oneOf [
+      (enum [
+        "documents"
+        "pictures"
+        "videos"
+        "music"
+        "downloads"
+        "desktop"
+        "public"
+      ])
+      (strMatching "[^/].*") # Custom path (must be relative to $HOME)
+    ];
+
+  # Helper to get the base directory for a domain
+  getDomainPath = domain:
+    if
+      builtins.elem domain [
+        "documents"
+        "pictures"
+        "videos"
+        "music"
+        "downloads"
+        "desktop"
+        "public"
+      ]
+    then "${config.home.homeDirectory}/${toUpper domain}"
+    else "${config.home.homeDirectory}/${domain}";
 
   # Default system structure
   defaultSystemStructure = {
@@ -132,18 +151,28 @@ in {
   options.johnny-mnemonix = {
     enable = mkEnableOption "Johnny Decimal document management";
 
-    # New: Domain configuration
     domain = mkOption {
       type = domainType;
       default = "documents";
-      description = "The home directory domain where the system will be implemented";
+      example = "10_Projects";
+      description = mdDoc ''
+        The home directory domain where the system will be implemented.
+        This can be either:
+        - A standard XDG directory ("documents", "pictures", etc.)
+        - A custom subdirectory path relative to $HOME (e.g., "10_Projects")
+
+        Custom paths must:
+        - Be relative to $HOME
+        - Not start with a slash
+        - Not contain parent directory references (..)
+      '';
     };
 
-    # Changed: baseDir now derives from domain
+    # Changed: baseDir now uses getDomainPath
     baseDir = mkOption {
       type = types.str;
-      default = "${config.home.homeDirectory}/${toUpper cfg.domain}";
-      defaultText = literalExpression ''"$HOME/Documents" (or other domain directory)'';
+      default = getDomainPath cfg.domain;
+      defaultText = literalExpression "getDomainPath domain";
       description = "Base directory for Johnny Decimal structure";
     };
 
@@ -179,6 +208,18 @@ in {
   };
 
   config = mkIf cfg.enable {
+    # Validate custom domain paths
+    assertions = [
+      {
+        assertion = !(hasPrefix "/" cfg.domain);
+        message = "Custom domain paths must be relative to $HOME (no leading slash)";
+      }
+      {
+        assertion = !(hasInfix ".." cfg.domain);
+        message = "Custom domain paths cannot contain parent directory references (..)";
+      }
+    ];
+
     # Create the base directory structure with permissions
     home.file =
       (mapAttrs
@@ -207,11 +248,20 @@ in {
       jd = "cd ${cfg.baseDir}";
     };
 
-    # XDG compliance based on chosen domain
-    xdg.userDirs = {
-      enable = true;
-      createDirectories = true;
-      ${cfg.domain} = cfg.baseDir;
-    };
+    # XDG compliance only for standard XDG domains
+    xdg.userDirs =
+      mkIf (builtins.elem cfg.domain [
+        "documents"
+        "pictures"
+        "videos"
+        "music"
+        "downloads"
+        "desktop"
+        "public"
+      ]) {
+        enable = true;
+        createDirectories = true;
+        ${cfg.domain} = cfg.baseDir;
+      };
   };
 }
