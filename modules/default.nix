@@ -1,7 +1,10 @@
-{ config, lib, pkgs, ... }:
-
-with lib;
-let
+{
+  config,
+  lib,
+  pkgs,
+  ...
+}:
+with lib; let
   # Import core module components
   core = import ./core {
     inherit config lib pkgs;
@@ -26,8 +29,16 @@ in {
 
   config = mkIf config.johnny-mnemonix.enable {
     # Re-export core configuration
-    inherit (core.config) 
+    inherit
+      (core.config)
       home
-      programs;
+      programs
+      ;
+  };
+
+  # Add meta information
+  meta = {
+    maintainers = ["lessuseless"];
+    doc = ./johnny-mnemonix.md; # Add documentation
   };
 }
