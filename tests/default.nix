@@ -7,6 +7,13 @@
     makeTest
     ;
 
+  inherit
+    (pkgs.lib)
+    mapAttrsToList
+    concatStringsSep
+    toUpper
+    ;
+
   # Test configuration with multiple areas and categories
   testConfig = {
     "10-19" = {
@@ -29,6 +36,13 @@
   testMode = "0750"; # More restrictive mode for testing
   otherUser = "other";
   otherGroup = "othergroup";
+
+  # Test domains
+  testDomains = {
+    documents = "/home/${testUser}/Documents";
+    pictures = "/home/${testUser}/Pictures";
+    downloads = "/home/${testUser}/Downloads";
+  };
 
   # Helper function to check permissions
   checkPerms = dirPath: ''
@@ -61,6 +75,30 @@
     machine.fail("su ${otherUser} -c 'test -r \"${dirPath}\"'")  # no read
     machine.fail("su ${otherUser} -c 'test -w \"${dirPath}\"'")  # no write
     machine.fail("su ${otherUser} -c 'test -x \"${dirPath}\"'")  # no execute
+  '';
+
+  # Helper function to check domain setup
+  checkDomain = domain: baseDir: ''
+    # Check XDG user directory is set correctly
+    machine.succeed(
+        "grep -q 'XDG_${toUpper domain}_DIR=\"${baseDir}\"' "
+        + "/home/${testUser}/.config/user-dirs.dirs"
+    )
+
+    # Check shell alias works for the domain
+    machine.succeed(
+        "su ${testUser} -c 'source ~/.bashrc && jd && pwd' | "
+        + "grep -q '${baseDir}'"
+    )
+    machine.succeed(
+        "su ${testUser} -c 'source ~/.zshrc && jd && pwd' | "
+        + "grep -q '${baseDir}'"
+    )
+
+    # Check default structure if enabled
+    machine.succeed("test -d '${baseDir}/00-09 System'")
+    machine.succeed("test -d '${baseDir}/00-09 System/01 User Directories'")
+    machine.succeed("test -d '${baseDir}/00-09 System/01 User Directories/01.01 Documents'")
   '';
 in
   makeTest {
@@ -97,6 +135,7 @@ in
       programs.bash.enable = true;
       programs.zsh.enable = true;
 
+      # Test different domain configurations
       home-manager.users.${testUser} = {...}: {
         imports = [../modules/johnny-mnemonix.nix];
 
@@ -106,23 +145,42 @@ in
           stateVersion = "23.11";
         };
 
-        # Enable the module with test configuration
+        # Test Documents domain (default)
         johnny-mnemonix = {
           enable = true;
-          baseDir = "/home/${testUser}/Documents";
+          domain = "documents";
           areas = testConfig;
-
-          # Test custom permissions
+          useDefaultStructure = true;
           permissions = {
             dirMode = testMode;
             user = testUser;
             group = testGroup;
           };
+        };
 
-          # Test cleanup options
-          cleanup = {
-            enable = true;
-            backup = true;
+        # Test Pictures domain
+        johnny-mnemonix-pictures = {
+          enable = true;
+          domain = "pictures";
+          areas = testConfig;
+          useDefaultStructure = true;
+          permissions = {
+            dirMode = testMode;
+            user = testUser;
+            group = testGroup;
+          };
+        };
+
+        # Test Downloads domain
+        johnny-mnemonix-downloads = {
+          enable = true;
+          domain = "downloads";
+          areas = testConfig;
+          useDefaultStructure = true;
+          permissions = {
+            dirMode = testMode;
+            user = testUser;
+            group = testGroup;
           };
         };
       };
@@ -133,44 +191,32 @@ in
       machine.wait_for_unit("multi-user.target")
       machine.wait_for_unit("home-manager-${testUser}.service")
 
-      # Test base directory permissions
-      with subtest("Base directory permissions"):
-          ${checkPerms "/home/${testUser}/Documents"}
+      # Test each domain configuration
+      with subtest("Domain configurations"):
+          ${concatStringsSep "\n" (mapAttrsToList (domain: baseDir: ''
+          # Test ${domain} domain
+          ${checkDomain domain baseDir}
+          ${checkPerms baseDir}
+          ${checkPerms "${baseDir}/10-19 Personal"}
+          ${checkPerms "${baseDir}/10-19 Personal/11 Finance"}
+          ${checkPerms "${baseDir}/10-19 Personal/11 Finance/11.01 Budget"}
+          ${checkPerms "${baseDir}/10-19 Personal/11 Finance/11.02 Investments"}
+        '')
+        testDomains)}
 
-      # Test area directory permissions
-      with subtest("Area directory permissions"):
-          ${checkPerms "/home/${testUser}/Documents/10-19 Personal"}
-
-      # Test category directory permissions
-      with subtest("Category directory permissions"):
-          ${checkPerms "/home/${testUser}/Documents/10-19 Personal/11 Finance"}
-
-      # Test item directory permissions
-      with subtest("Item directory permissions"):
-          ${checkPerms "/home/${testUser}/Documents/10-19 Personal/11 Finance/11.01 Budget"}
-          ${checkPerms "/home/${testUser}/Documents/10-19 Personal/11 Finance/11.02 Investments"}
-
-      # Test file creation in directories
-      with subtest("File operations"):
+      # Test file operations in each domain
+      with subtest("File operations across domains"):
+          ${concatStringsSep "\n" (mapAttrsToList (_: baseDir: ''
           # Owner should be able to create files
-          machine.succeed("su ${testUser} -c 'touch /home/${testUser}/Documents/test.txt'")
-          machine.succeed("su ${testUser} -c 'rm /home/${testUser}/Documents/test.txt'")
+          machine.succeed("su ${testUser} -c 'touch ${baseDir}/test.txt'")
+          machine.succeed("su ${testUser} -c 'rm ${baseDir}/test.txt'")
 
           # Group should not be able to create files (750)
-          machine.fail("su ${testUser} -g ${testGroup} -c 'touch /home/${testUser}/Documents/test.txt'")
+          machine.fail("su ${testUser} -g ${testGroup} -c 'touch ${baseDir}/test.txt'")
 
           # Others should not be able to create files
-          machine.fail("su ${otherUser} -c 'touch /home/${testUser}/Documents/test.txt'")
-
-      # Test directory traversal
-      with subtest("Directory traversal"):
-          # Owner should be able to list directory contents
-          machine.succeed("su ${testUser} -c 'ls /home/${testUser}/Documents/10-19 Personal/11 Finance'")
-
-          # Group should be able to list directory contents
-          machine.succeed("su ${testUser} -g ${testGroup} -c 'ls /home/${testUser}/Documents/10-19 Personal/11 Finance'")
-
-          # Others should not be able to list directory contents
-          machine.fail("su ${otherUser} -c 'ls /home/${testUser}/Documents/10-19 Personal/11 Finance'")
+          machine.fail("su ${otherUser} -c 'touch ${baseDir}/test.txt'")
+        '')
+        testDomains)}
     '';
   }

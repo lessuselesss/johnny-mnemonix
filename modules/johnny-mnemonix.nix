@@ -95,13 +95,55 @@ with lib; let
     (x: _: x)
     {}
     (concatLists (mapAttrsToList mkAreaDirs cfg.areas));
+
+  # Domain options
+  domainType = types.enum [
+    "documents"
+    "pictures"
+    "videos"
+    "music"
+    "downloads"
+    "desktop"
+    "public"
+  ];
+
+  # Default system structure
+  defaultSystemStructure = {
+    "00-09" = {
+      name = "System";
+      categories = {
+        "01" = {
+          name = "User Directories";
+          items = {
+            "01.01" = "Documents";
+            "01.02" = "Downloads";
+            "01.03" = "Pictures";
+            "01.04" = "Videos";
+            "01.05" = "Music";
+            "01.06" = "Desktop";
+            "01.07" = "Public";
+            "01.08" = "Templates";
+          };
+        };
+      };
+    };
+  };
 in {
   options.johnny-mnemonix = {
     enable = mkEnableOption "Johnny Decimal document management";
 
+    # New: Domain configuration
+    domain = mkOption {
+      type = domainType;
+      default = "documents";
+      description = "The home directory domain where the system will be implemented";
+    };
+
+    # Changed: baseDir now derives from domain
     baseDir = mkOption {
       type = types.str;
-      default = "${config.home.homeDirectory}/Documents";
+      default = "${config.home.homeDirectory}/${toUpper cfg.domain}";
+      defaultText = literalExpression ''"$HOME/Documents" (or other domain directory)'';
       description = "Base directory for Johnny Decimal structure";
     };
 
@@ -111,14 +153,12 @@ in {
       description = "Map of area IDs to area configurations";
     };
 
-    # New permissions option
     permissions = mkOption {
       type = permissionsType;
       default = {};
       description = "Permissions for created directories";
     };
 
-    # New cleanup option
     cleanup = {
       enable = mkEnableOption "Clean up directories when disabled";
       backup = mkOption {
@@ -127,12 +167,30 @@ in {
         description = "Create a backup before cleaning up directories";
       };
     };
+
+    useDefaultStructure = mkOption {
+      type = types.bool;
+      default = false;
+      description = ''
+        Whether to include the default system structure.
+        This adds a "00-09 System" area with standard user directories as items.
+      '';
+    };
   };
 
   config = mkIf cfg.enable {
     # Create the base directory structure with permissions
     home.file =
-      mkDirs
+      (mapAttrs
+        (_: _: {
+          source = null;
+          inherit (cfg.permissions) dirMode user group;
+        })
+        (mkDirs (
+          if cfg.useDefaultStructure
+          then defaultSystemStructure // cfg.areas
+          else cfg.areas
+        )))
       // {
         ${cfg.baseDir} = {
           source = null;
@@ -149,10 +207,11 @@ in {
       jd = "cd ${cfg.baseDir}";
     };
 
-    # Ensure XDG compliance
+    # XDG compliance based on chosen domain
     xdg.userDirs = {
-      documents = cfg.baseDir;
       enable = true;
+      createDirectories = true;
+      ${cfg.domain} = cfg.baseDir;
     };
   };
 }
