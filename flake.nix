@@ -47,10 +47,12 @@
           programs.zsh = {
             enable = true;
             enableCompletion = true;
-            initExtra = '''';
+            enableAutosuggestions = true;
+            enableSyntaxHighlighting = true;
           };
 
           johnny-mnemonix = {
+            enable = true;
             shell = {
               enable = true;
               prefix = "jm";
