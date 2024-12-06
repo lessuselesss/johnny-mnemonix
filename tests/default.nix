@@ -1,5 +1,11 @@
-{lib, ...}: let
-  inherit (lib) nixosTest;
+{pkgs, ...}: let
+  inherit
+    (import "${pkgs.path}/nixos/lib/testing-python.nix" {
+      inherit (pkgs) system;
+      inherit pkgs;
+    })
+    makeTest
+    ;
 
   # Test configuration with multiple areas and categories
   testConfig = {
@@ -34,7 +40,7 @@
     };
   };
 in
-  nixosTest {
+  makeTest {
     name = "johnny-mnemonix";
 
     nodes.machine = {pkgs, ...}: {

@@ -47,6 +47,12 @@
               entry = "${pkgs.nix}/bin/nix flake show";
               pass_filenames = false;
             };
+            tests = {
+              enable = true;
+              name = "tests";
+              entry = "${pkgs.nix}/bin/nix eval .#checks.${system}.vm-test";
+              pass_filenames = false;
+            };
           };
         };
       in
@@ -93,6 +99,7 @@
           nil.enable = true;
         };
       };
+      vm-test = nixpkgs.legacyPackages.${system}.callPackage ./tests {};
     });
   };
 }
