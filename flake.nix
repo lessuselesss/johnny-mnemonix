@@ -49,10 +49,17 @@
             enableCompletion = true;
             enableAutosuggestions = true;
             enableSyntaxHighlighting = true;
+            initExtraFirst = ''
+              # Source johnny-mnemonix functions
+              if [ -f $HOME/.local/share/johnny-mnemonix/shell-functions.sh ]; then
+                source $HOME/.local/share/johnny-mnemonix/shell-functions.sh
+              fi
+            '';
           };
 
           johnny-mnemonix = {
             enable = true;
+            baseDir = "/Users/lessuseless/Documents";
             shell = {
               enable = true;
               prefix = "jm";

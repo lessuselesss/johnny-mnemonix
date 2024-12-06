@@ -131,6 +131,8 @@ in {
 
   config = mkIf cfg.enable (mkMerge [
     {
+      home.file.".local/share/johnny-mnemonix/.keep".text = "";
+
       home.file.".local/share/johnny-mnemonix/shell-functions.sh" = mkIf cfg.shell.enable {
         text = mkShellFunctions cfg.shell.prefix;
         executable = true;
@@ -139,7 +141,7 @@ in {
       programs.zsh = mkIf cfg.shell.enable {
         enable = true;
         enableCompletion = true;
-        initExtra = ''
+        initExtraFirst = ''
           # Source johnny-mnemonix functions
           if [ -f $HOME/.local/share/johnny-mnemonix/shell-functions.sh ]; then
             source $HOME/.local/share/johnny-mnemonix/shell-functions.sh
