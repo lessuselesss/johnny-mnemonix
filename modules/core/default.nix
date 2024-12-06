@@ -4,96 +4,68 @@
   pkgs,
   ...
 }:
-with lib; {
-  options.johnny-mnemonix = {
-    baseDir = mkOption {
-      type = types.path;
-      apply = toString;
-      description = "Base directory for document structure";
-      example = "/home/user/Documents";
-      check = x: builtins.substring 0 1 (toString x) == "/";
-    };
-  };
+with lib; let
+  cfg = config.johnny-mnemonix;
 
-  # Add meta information
-  meta = {
-    maintainers = ["lessuseless"];
-    doc = ./johnny-mnemonix.md; # Add documentation
-  };
+  # Import utility functions
+  utils = import ../../lib/utils.nix {nixpkgs = pkgs;};
 
-  # Import submodules
-  activation = import ./activation.nix {inherit config lib pkgs;};
+  # Helper function to create directory commands
+  mkDirCmd = path: ''
+    $DRY_RUN_CMD mkdir $VERBOSE_ARG -p "${path}"
+    $DRY_RUN_CMD chmod $VERBOSE_ARG 750 "${path}"
+  '';
 
+  # Helper functions for directory creation
+  mkAreaDirs = mapAttrsToList (areaId: area:
+    mkDirCmd (utils.path.makeAreaPath {
+      baseDir = cfg.baseDir;
+      areaId = areaId;
+      areaName = area.name;
+    }))
+  cfg.areas;
+
+  mkCategoryDirs = mapAttrsToList (areaId: area:
+    mapAttrsToList (catId: cat:
+      mkDirCmd (utils.path.makeCategoryPath {
+        baseDir = cfg.baseDir;
+        areaId = areaId;
+        areaName = area.name;
+        categoryId = catId;
+        categoryName = cat.name;
+      }))
+    area.categories)
+  cfg.areas;
+
+  mkItemDirs = mapAttrsToList (areaId: area:
+    mapAttrsToList (catId: cat:
+      mapAttrsToList (itemId: name:
+        mkDirCmd (utils.path.makeItemPath {
+          baseDir = cfg.baseDir;
+          areaId = areaId;
+          areaName = area.name;
+          categoryId = catId;
+          categoryName = cat.name;
+          itemId = itemId;
+          itemName = name;
+        }))
+      cat.items)
+    area.categories)
+  cfg.areas;
+in {
   config = mkIf cfg.enable {
-    # Create directory structure
-    home.activation = activation.createDirectories;
+    home.activation.createJohnnyMnemonixStructure = lib.hm.dag.entryAfter ["writeBoundary"] ''
+      # Create base directory
+      ${mkDirCmd cfg.baseDir}
 
-    # Shell integration
-    programs = {
-      bash.shellAliases = {
-        "jd" = "cd ${cfg.baseDir}";
-      };
+      # Create area directories
+      ${concatStringsSep "\n" mkAreaDirs}
 
-      zsh.shellAliases = {
-        "jd" = "cd ${cfg.baseDir}";
-      };
+      # Create category directories
+      ${concatStringsSep "\n" (concatLists mkCategoryDirs)}
 
-      fish.shellAliases = {
-        "jd" = "cd ${cfg.baseDir}";
-      };
-
-      fish.functions = {
-        jj = ''
-          function jj
-            set -l code $argv[1]
-            set -l base_dir $JOHNNY_MNEMONIX_BASE
-            test -z "$base_dir"; and set base_dir $HOME/Documents
-
-            # Validate input
-            if not string match -qr '^[0-9.-]+$' -- $code
-              echo "Invalid format. Use: XX-YY (area) or XX (category) or XX.YY (item)" >&2
-              return 1
-            end
-
-            switch $code
-              # Area navigation (e.g., 10-19)
-              case '[0-9][0-9]-[0-9][0-9]'
-                set -l target_dir $base_dir/*$code*/
-                if test -d $target_dir
-                  cd $target_dir
-                else
-                  echo "Area not found: $code" >&2
-                  return 1
-                end
-
-              # Category navigation (e.g., 11)
-              case '[0-9][0-9]'
-                set -l target_dir $base_dir/*/*$code\ */
-                if test -d $target_dir
-                  cd $target_dir
-                else
-                  echo "Category not found: $code" >&2
-                  return 1
-                end
-
-              # Item navigation (e.g., 11.01)
-              case '[0-9][0-9].[0-9][0-9]'
-                set -l target_dir $base_dir/*/*/*$code\ */
-                if test -d $target_dir
-                  cd $target_dir
-                else
-                  echo "Item not found: $code" >&2
-                  return 1
-                end
-
-              case '*'
-                echo "Invalid Johnny Decimal code format" >&2
-                echo "Usage: jj XX-YY (area) or XX (category) or XX.YY (item)" >&2
-                return 1
-            end
-          end
-        '';
-      };
-    };
+      # Create item directories
+      ${concatStringsSep "\n" (concatLists (concatLists mkItemDirs))}
+    '';
   };
 }

@@ -2,7 +2,7 @@
   description = "Flattened Johnny Mnemonix configuration example";
 
   inputs = {
-    nixpkgs.url = "github:nixpkgs/nixpkgs/nixos-unstable";
+    nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
     home-manager.url = "github:nix-community/home-manager";
   };
 
@@ -140,17 +140,17 @@
     '';
   in {
     homeConfigurations."example" = home-manager.lib.homeManagerConfiguration {
-      pkgs = nixpkgs.legacyPackages.x86_64-linux;
+      pkgs = nixpkgs.legacyPackages.aarch64-darwin;
       modules = [
+        ./modules/default.nix
         {
-          home.username = "user1";
-          home.homeDirectory = "/home/user1";
+          home.username = "lessuseless";
+          home.homeDirectory = "/Users/lessuseless";
           home.stateVersion = "24.11";
 
-          # Core configuration for Johnny Mnemonix
           johnny-mnemonix = {
             enable = true;
-            baseDir = "/home/user1/Documents";
+            baseDir = "/Users/lessuseless/Documents";
             validation.strict = true;
 
             # Your existing areas configuration
@@ -186,10 +186,10 @@
             );
 
           # Shell integration
-          programs = {config, ...}: {
-            bash.shellAliases.jd = "cd ${config.johnny-mnemonix.baseDir}";
-            zsh.shellAliases.jd = "cd ${config.johnny-mnemonix.baseDir}";
-            fish.shellAliases.jd = "cd ${config.johnny-mnemonix.baseDir}";
+          programs = {
+            bash.shellAliases.jd = "cd /Users/lessuseless/Documents";
+            zsh.shellAliases.jd = "cd /Users/lessuseless/Documents";
+            fish.shellAliases.jd = "cd /Users/lessuseless/Documents";
           };
         }
       ];

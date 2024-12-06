@@ -5,10 +5,7 @@
   ...
 }:
 with lib; let
-  # Import core module components
-  core = import ./core {
-    inherit config lib pkgs;
-  };
+  cfg = config.johnny-mnemonix;
 in {
   imports = [
     ./core/default.nix
@@ -18,27 +15,44 @@ in {
     enable = mkEnableOption "Johnny Mnemonix document management";
 
     baseDir = mkOption {
-      type = types.str;
+      type = types.addCheck types.path (
+        x:
+          builtins.substring 0 1 (toString x) == "/"
+      );
+      apply = toString;
       default = "${config.home.homeDirectory}/Documents";
-      description = "Base directory for document structure (HOMEOFFICE)";
+      description = "Base directory for document structure";
     };
 
-    # Re-export core options
-    inherit (core.options) areas;
+    areas = mkOption {
+      type = types.attrs;
+      default = {};
+      description = "Document areas configuration";
+    };
+
+    validation = {
+      strict = mkOption {
+        type = types.bool;
+        default = false;
+        description = "Enable strict validation of the document structure";
+      };
+    };
   };
 
-  config = mkIf config.johnny-mnemonix.enable {
-    # Re-export core configuration
-    inherit
-      (core.config)
-      home
-      programs
-      ;
+  config = mkIf cfg.enable {
+    programs.bash.shellAliases = {
+      "jd" = "cd ${cfg.baseDir}";
+    };
+    programs.zsh.shellAliases = {
+      "jd" = "cd ${cfg.baseDir}";
+    };
+    programs.fish.shellAliases = {
+      "jd" = "cd ${cfg.baseDir}";
+    };
   };
 
-  # Add meta information
   meta = {
     maintainers = ["lessuseless"];
-    doc = ./johnny-mnemonix.md; # Add documentation
+    doc = ./johnny-mnemonix.md;
   };
 }
