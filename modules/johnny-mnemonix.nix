@@ -8,9 +8,13 @@ with lib; let
 
   # Helper to create directories
   mkAreaDirs = areas: let
+    # Remove $HOME/Documents/ prefix if present
+    cleanPath = path:
+      replaceStrings ["$HOME/Documents/"] [""] path;
+
     mkCategoryDirs = areaId: areaConfig: categoryId: categoryConfig:
       mapAttrs' (itemId: itemName: {
-        name = "${cfg.baseDir}/${areaId}-${areaConfig.name}/${categoryId}-${categoryConfig.name}/${itemId}-${itemName}";
+        name = cleanPath "${cfg.baseDir}/${areaId}-${areaConfig.name}/${categoryId}-${categoryConfig.name}/${itemId}-${itemName}";
         value.directory = {};
       })
       categoryConfig.items;
