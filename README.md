@@ -28,9 +28,12 @@ $HOMEOFFICE/ #($HOME/Documents/)
 └── ...
 ```
 
-Each component follows the Johnny Decimal system:
+Each component follows the Johnny Decimal system, analogizing a Book Case
+__*Shelf*__
 - **Areas**: Broad divisions (10-19, 20-29, etc.)
+__*Box*__
 - **Categories**: Subdivisions within areas (11, 12, etc.)
+__*Book*__
 - **IDs**: Specific locations for files (11.01, 11.02, etc.)
 
 ## Configuration
