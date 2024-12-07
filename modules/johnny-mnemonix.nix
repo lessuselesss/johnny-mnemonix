@@ -64,7 +64,7 @@ with lib; let
     mkCategoryDirs = areaId: areaConfig: categoryId: categoryConfig:
       concatMapStrings (itemId: let
         itemConfig = categoryConfig.items.${itemId};
-        baseItemPath = "${cfg.baseDir}/${areaId}-${areaConfig.name}/${categoryId}-${categoryConfig.name}/${itemId}";
+        baseItemPath = "${cfg.baseDir}/${areaId}${cfg.spacer}${areaConfig.name}/${categoryId}${cfg.spacer}${categoryConfig.name}/${itemId}";
       in
         if isString itemConfig
         then ''
@@ -292,6 +292,13 @@ in {
     baseDir = mkOption {
       type = types.str;
       description = "Base directory for johnny-mnemonix";
+    };
+
+    spacer = mkOption {
+      type = types.str;
+      default = " ";
+      example = "-";
+      description = "Character(s) to use between ID and name (e.g., '11${placeholder "spacer"}Finance')";
     };
 
     shell = {
