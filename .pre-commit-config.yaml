@@ -1,33 +1,54 @@
+default_stages: [pre-commit]
 repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.5.0
+    hooks:
+      - id: trailing-whitespace
+        stages: [pre-commit]
+      - id: end-of-file-fixer
+        stages: [pre-commit]
+      - id: check-yaml
+        stages: [pre-commit]
+      - id: check-added-large-files
+        stages: [pre-commit]
+      - id: check-merge-conflict
+        stages: [pre-commit]
+      - id: check-executables-have-shebangs
+        stages: [pre-commit]
+      - id: check-shebang-scripts-are-executable
+        stages: [pre-commit]
+
+  # Replace the Alejandra remote hook with a local one
   - repo: local
     hooks:
-      - id: tests
-        name: "tests"
-        entry: nix build .#checks.aarch64-darwin.basic-test
-        language: system
-        pass_filenames: false
       - id: alejandra
-        name: "alejandra"
+        name: Format Nix files with Alejandra
         entry: alejandra
         language: system
-        files: .*\.nix$
-      - id: deadnix
-        name: "deadnix"
-        entry: deadnix
-        language: system
-        files: .*\.nix$
-      - id: flake-check
-        name: "flake-check"
+        files: '.*\.nix$'
+        exclude: 'vendor/.*'
+        stages: [pre-commit]
+
+      - id: check-flake
+        name: Check Nix Flake
         entry: nix flake check
         language: system
         pass_filenames: false
-      # - id: nil
-      #   name: "nil diagnostics"
-      #   entry: bash -c 'nil diagnostics "$@"' --
-      #   language: system
-      #   files: .*\.nix$
+        files: '(flake\.nix|.*\.nix)$'
+        stages: [pre-commit]
+
       - id: statix
-        name: "statix"
-        entry: statix check .
+        name: Static analysis for Nix
+        entry: statix check
         language: system
         pass_filenames: false
+        files: '.*\.nix$'
+        stages: [pre-commit]
+
+      - id: deadnix
+        name: Find dead Nix code
+        entry: deadnix
+        language: system
+        pass_filenames: false
+        files: '.*\.nix$'
+        stages: [pre-commit]
