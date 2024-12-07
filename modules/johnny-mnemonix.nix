@@ -68,7 +68,7 @@ with lib; let
       in
         if isString itemConfig
         then ''
-          mkdir -p "${baseItemPath}-${itemConfig}"
+          mkdir -p "${baseItemPath}${cfg.spacer}${itemConfig}"
         ''
         else ''
           # Create parent directory if it doesn't exist
@@ -78,17 +78,17 @@ with lib; let
             if itemConfig.url != null
             then ''
               # Git repository handling
-              if [ ! -d "${baseItemPath}-${itemConfig.name}" ]; then
+              if [ ! -d "${baseItemPath}${cfg.spacer}${itemConfig.name}" ]; then
                 ${gitWithSsh}/bin/git-with-ssh clone ${
                 if itemConfig.sparse != []
                 then "--sparse"
                 else ""
               } \
                   --branch ${itemConfig.ref} \
-                  ${itemConfig.url} "${baseItemPath}-${itemConfig.name}"
+                  ${itemConfig.url} "${baseItemPath}${cfg.spacer}${itemConfig.name}"
 
                 ${optionalString (itemConfig.sparse != []) ''
-                cd "${baseItemPath}-${itemConfig.name}"
+                cd "${baseItemPath}${cfg.spacer}${itemConfig.name}"
                 ${gitWithSsh}/bin/git-with-ssh sparse-checkout set ${concatStringsSep " " itemConfig.sparse}
               ''}
               fi
@@ -96,13 +96,13 @@ with lib; let
             else if itemConfig.target != null
             then ''
               # Symlink handling
-              if [ ! -e "${baseItemPath}-${itemConfig.name}" ]; then
-                ln -s "${itemConfig.target}" "${baseItemPath}-${itemConfig.name}"
+              if [ ! -e "${baseItemPath}${cfg.spacer}${itemConfig.name}" ]; then
+                ln -s "${itemConfig.target}" "${baseItemPath}${cfg.spacer}${itemConfig.name}"
               fi
             ''
             else ''
               # Regular directory
-              mkdir -p "${baseItemPath}-${itemConfig.name}"
+              mkdir -p "${baseItemPath}${cfg.spacer}${itemConfig.name}"
             ''
           }
         '') (attrNames categoryConfig.items);
