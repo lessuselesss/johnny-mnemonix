@@ -198,23 +198,68 @@ sparse = [
 - Empty list means full checkout (no sparse-checkout)
 ```
 
+## State Management
+
+Johnny-Mnemonix follows the XDG Base Directory Specification:
+
+```nix
+{
+  johnny-mnemonix = {
+    enable = true;
+    baseDir = "${config.home.homeDirectory}/Documents";
+    # State files are automatically managed in XDG directories:
+    # - State: $XDG_STATE_HOME/johnny-mnemonix/state.json (default: ~/.local/state/johnny-mnemonix/)
+    # - Cache: $XDG_CACHE_HOME/johnny-mnemonix/ (default: ~/.cache/johnny-mnemonix/)
+    # - Config: $XDG_CONFIG_HOME/johnny-mnemonix/ (default: ~/.config/johnny-mnemonix/)
+  };
+}
+```
+
+### State Files Location
+
+| File | XDG Path | Default Location | Purpose |
+|------|----------|-----------------|----------|
+| `state.json` | `$XDG_STATE_HOME/johnny-mnemonix/` | `~/.local/state/johnny-mnemonix/state.json` | Directory content hashes and metadata |
+| `structure-changes.log` | `$XDG_STATE_HOME/johnny-mnemonix/` | `~/.local/state/johnny-mnemonix/structure-changes.log` | Directory structure change history |
+| `cache.json` | `$XDG_CACHE_HOME/johnny-mnemonix/` | `~/.cache/johnny-mnemonix/cache.json` | Shell completion cache |
+| `config.json` | `$XDG_CONFIG_HOME/johnny-mnemonix/` | `~/.config/johnny-mnemonix/config.json` | Runtime configuration |
+
+### Custom Locations
+
+You can override default locations:
+
+```nix
+{
+  johnny-mnemonix = {
+    enable = true;
+    baseDir = "${config.home.homeDirectory}/Documents";
+    xdg = {
+      # Optional: override default XDG paths
+      stateHome = "/path/to/state";
+      cacheHome = "/path/to/cache";
+      configHome = "/path/to/config";
+    };
+  };
+}
+```
+
 ## Verification
 
-After configuration:
+After applying changes, verify your setup:
 
-1. Run your system update command:
-   - For NixOS: `nixos-rebuild switch`
-   - For Darwin: `darwin-rebuild switch`
-   - For Home Manager: `home-manager switch`
+1. Check directory structure:
+```bash
+ls ~/Documents/10-19\ Personal/11\ Finance/
+```
 
-2. Verify directory creation:
-   ```bash
-   ls ~/Documents/10-19\ Personal/11\ Finance/
-   ```
+2. Verify state files:
+```bash
+# Check state
+cat ~/.local/state/johnny-mnemonix/state.json
 
-3. Test shell commands (if enabled):
-   ```bash
-   jm          # Navigate to base directory
-   jmls        # List contents
-   jm 11.01    # Navigate to specific item
-   ```
+# Check change history
+cat ~/.local/state/johnny-mnemonix/structure-changes.log
+
+# Check cache
+cat ~/.cache/johnny-mnemonix/cache.json
+```

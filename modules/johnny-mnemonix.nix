@@ -7,6 +7,21 @@
 with lib; let
   cfg = config.johnny-mnemonix;
 
+  # XDG paths
+  xdgStateHome = cfg.xdg.stateHome or "${config.home.homeDirectory}/.local/state";
+  xdgCacheHome = cfg.xdg.cacheHome or "${config.home.homeDirectory}/.cache";
+  xdgConfigHome = cfg.xdg.configHome or "${config.home.homeDirectory}/.config";
+
+  # State file locations
+  stateDir = "${xdgStateHome}/johnny-mnemonix";
+  cacheDir = "${xdgCacheHome}/johnny-mnemonix";
+  configDir = "${xdgConfigHome}/johnny-mnemonix";
+
+  stateFile = "${stateDir}/state.json";
+  changesFile = "${stateDir}/structure-changes.log";
+  cacheFile = "${cacheDir}/cache.json";
+  configFile = "${configDir}/config.json";
+
   # Type definitions
   itemOptionsType = types.submodule {
     options = {
@@ -70,6 +85,8 @@ with lib; let
 
   # Helper to read/write state
   mkStateOps = ''
+    mkdir -p "${stateDir}" "${cacheDir}" "${configDir}"
+
     read_state() {
       if [ -f "${stateFile}" ]; then
         cat "${stateFile}"
@@ -82,11 +99,8 @@ with lib; let
       echo "$1" > "${stateFile}"
     }
 
-    update_state() {
-      local path="$1"
-      local hash="$2"
-      local state=$(read_state)
-      echo "$state" | ${pkgs.jq}/bin/jq --arg path "$path" --arg hash "$hash" '. + {($path): $hash}'
+    log_change() {
+      echo "$1" >> "${changesFile}"
     }
   '';
 
@@ -326,6 +340,26 @@ in {
       });
       default = {};
       description = "Areas configuration";
+    };
+
+    xdg = {
+      stateHome = mkOption {
+        type = types.nullOr types.str;
+        default = null;
+        description = "Override default XDG_STATE_HOME location";
+      };
+
+      cacheHome = mkOption {
+        type = types.nullOr types.str;
+        default = null;
+        description = "Override default XDG_CACHE_HOME location";
+      };
+
+      configHome = mkOption {
+        type = types.nullOr types.str;
+        default = null;
+        description = "Override default XDG_CONFIG_HOME location";
+      };
     };
   };
 
