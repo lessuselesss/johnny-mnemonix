@@ -270,19 +270,17 @@ with lib; let
     validateCategory = id: _: validateId id "[0-9]{2}";
     validateItem = id: _: validateId id "[0-9]{2}.[0-9]{2}";
 
-    # Run validations
-    areaChecks = lib.mapAttrs validateArea areas;
-    categoryChecks =
-      lib.concatMapAttrs
+    # Run validations and convert to boolean
+    areaChecks = lib.all (x: x) (lib.attrValues (lib.mapAttrs validateArea areas));
+    categoryChecks = lib.all (x: x) (lib.attrValues (lib.concatMapAttrs
       (areaId: area: lib.mapAttrs validateCategory area.categories)
-      areas;
-    itemChecks =
-      lib.concatMapAttrs
+      areas));
+    itemChecks = lib.all (x: x) (lib.attrValues (lib.concatMapAttrs
       (areaId: area:
         lib.concatMapAttrs
         (catId: cat: lib.mapAttrs validateItem cat.items)
         area.categories)
-      areas;
+      areas));
   in
     areaChecks && categoryChecks && itemChecks;
 in {
