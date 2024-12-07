@@ -23,7 +23,7 @@ For Darwin/MacOS systems, add it to your darwin configuration:
 {
   home-manager.users.${user} = { config, ... }: {
     imports = [johnny-mnemonix.homeManagerModules.default];
-    
+
     johnny-mnemonix = {
       enable = true;
       baseDir = "${config.home.homeDirectory}/Documents";
@@ -128,18 +128,18 @@ items = {
       "docs/*.md"              # Only markdown files directly in docs/
       "docs/**/*.md"           # Markdown files in docs/ and all subdirectories
       "src/components/"        # Everything in the components directory
-      
+
       # File patterns
       "README.md"              # Single file in root
       "package.json"           # Another single file
-      
+
       # Multiple file types
       "assets/*.{png,jpg}"     # PNG and JPG files in assets/
-      
+
       # Complex patterns
       "src/*/index.js"         # index.js in any immediate subdirectory of src/
       "tests/**/*_test.js"     # All test files in tests/ and subdirectories
-      
+
       # Negative patterns (exclude)
       "!node_modules/**"       # Exclude all node_modules content
       "!**/*.log"             # Exclude all log files everywhere
@@ -171,19 +171,19 @@ sparse = [
   # Documentation only
   "docs/**"                # All documentation files
   "*.md"                   # All markdown files in root
-  
+
   # Source code subset
   "src/specific-module/**" # Just one module
   "src/**/*.ts"           # All TypeScript files
-  
+
   # Configuration files
   "config/*.json"         # JSON configs in config/
   ".*rc"                 # All RC files in root
-  
+
   # Mixed content
   "assets/images/*.svg"   # SVG files only
   "scripts/deploy/*"      # Deployment scripts only
-  
+
   # Exclude patterns
   "!**/*.test.js"        # No test files
   "!**/dist/**"          # No build artifacts
@@ -262,4 +262,113 @@ cat ~/.local/state/johnny-mnemonix/structure-changes.log
 
 # Check cache
 cat ~/.cache/johnny-mnemonix/cache.json
+```
+
+## Basic Configuration
+
+```nix
+{
+  johnny-mnemonix = {
+    enable = true;
+    baseDir = "${config.home.homeDirectory}/Documents";
+    spacer = " ";  # Character between ID and name (optional, defaults to space)
+
+    # Git settings
+    git = {
+      autoFetch = true;        # Automatically fetch updates
+      fetchInterval = 1800;    # Fetch interval in seconds (30 minutes)
+      sparseByDefault = true;  # Enable sparse checkout by default
+    };
+
+    # Backup settings
+    backup = {
+      enable = true;           # Enable automatic backups
+      interval = "daily";      # Options: "hourly", "daily", "weekly"
+      location = "/backup/documents";  # Backup destination
+    };
+
+    # Directory structure
+    areas = {
+      "10-19" = {
+        name = "Personal";
+        categories = {
+          "11" = {
+            name = "Finance";
+            items = {
+              "11.01" = "Budget";
+              "11.02" = {
+                name = "Investment Tracker";
+                url = "git@github.com:user/investments.git";  # Git repository
+                ref = "main";    # Optional: branch/tag/commit
+                sparse = [];     # Optional: sparse checkout patterns
+              };
+              "11.03" = {
+                name = "Shared Documents";
+                target = "/path/to/shared/docs";  # Symlink target
+              };
+            };
+          };
+        };
+      };
+    };
+  };
+}
+```
+
+## Options Reference
+
+### Core Options
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `enable` | boolean | `false` | Enable johnny-mnemonix |
+| `baseDir` | string | `"${config.home.homeDirectory}/Documents"` | Base directory for document structure |
+| `spacer` | string | `" "` | Character(s) between ID and name |
+
+### Git Integration
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `git.autoFetch` | boolean | `true` | Automatically fetch updates |
+| `git.fetchInterval` | integer | `3600` | Seconds between fetches |
+| `git.sparseByDefault` | boolean | `false` | Enable sparse checkout by default |
+
+### Backup Settings
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `backup.enable` | boolean | `false` | Enable automatic backups |
+| `backup.interval` | enum | `"daily"` | Backup frequency ("hourly", "daily", "weekly") |
+| `backup.location` | null or path | `null` | Backup destination path |
+
+### Directory Structure
+
+Areas, categories, and items follow the Johnny Decimal system:
+- Areas: `XX-YY` format (e.g., "10-19")
+- Categories: `XX` format (e.g., "11")
+- Items: `XX.YY` format (e.g., "11.01")
+
+#### Item Types
+
+1. **Simple Directory**
+```nix
+"11.01" = "Budget";
+```
+
+2. **Git Repository**
+```nix
+"11.02" = {
+  name = "Project";
+  url = "git@github.com:user/repo.git";
+  ref = "main";     # Optional
+  sparse = [];      # Optional
+};
+```
+
+3. **Symlink**
+```nix
+"11.03" = {
+  name = "Shared";
+  target = "/path/to/target";
+};
 ```

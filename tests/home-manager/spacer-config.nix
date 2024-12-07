@@ -1,43 +1,33 @@
-{
-  pkgs,
-  lib,
-  ...
-}: {
+{lib, ...}: {
   name = "spacer-config";
 
-  nodes.machine = {...}: {
+  nodes.machine = {pkgs, ...}: {
     imports = [../../modules/johnny-mnemonix.nix];
+    environment.systemPackages = [pkgs.coreutils];
     home-manager.users.testuser = {
       johnny-mnemonix = {
         enable = true;
         baseDir = "/tmp/test-jm";
-        spacer = "-"; # Test with hyphen
-        areas = {
-          "10-19" = {
-            name = "Personal";
-            categories = {
-              "11" = {
-                name = "Finance";
-                items = {
-                  "11.01" = "Budget";
-                };
-              };
-            };
-          };
-        };
+        spacer = "-";
       };
     };
   };
 
-  testScript = ''
+  testScript = let
+    basePath = lib.escapeShellArg "/tmp/test-jm";
+    testPaths = [
+      "10-19-Personal"
+      "10-19-Personal/11-Finance"
+      "10-19-Personal/11-Finance/11.01-Budget"
+    ];
+  in ''
     machine.wait_for_unit("multi-user.target")
 
-    # Check directory names use correct spacer
-    machine.succeed("test -d '/tmp/test-jm/10-19-Personal'")
-    machine.succeed("test -d '/tmp/test-jm/10-19-Personal/11-Finance'")
-    machine.succeed("test -d '/tmp/test-jm/10-19-Personal/11-Finance/11.01-Budget'")
+    ${lib.concatMapStrings (path: ''
+        machine.succeed("test -d ${basePath}/${lib.escapeShellArg path}")
+      '')
+      testPaths}
 
-    # Verify spaces aren't used
-    machine.fail("test -d '/tmp/test-jm/10-19 Personal'")
+    machine.fail("test -d ${basePath}/10-19 Personal")
   '';
 }

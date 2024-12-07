@@ -20,7 +20,34 @@ with lib; let
   stateFile = "${stateDir}/state.json";
   changesFile = "${stateDir}/structure-changes.log";
   cacheFile = "${cacheDir}/cache.json";
-  configFile = "${configDir}/config.json";
+
+  # Cache operations
+  mkCacheOps = ''
+    read_cache() {
+      if [ -f "${cacheFile}" ]; then
+        cat "${cacheFile}"
+      else
+        echo "{}"
+      fi
+    }
+
+    write_cache() {
+      echo "$1" > "${cacheFile}"
+    }
+
+    cache_directory_hash() {
+      local path="$1"
+      local hash="$2"
+      local cache=$(read_cache)
+      echo "$cache" | ${pkgs.jq}/bin/jq --arg path "$path" --arg hash "$hash" '. + {($path): $hash}' > "${cacheFile}"
+    }
+
+    get_cached_hash() {
+      local path="$1"
+      local cache=$(read_cache)
+      echo "$cache" | ${pkgs.jq}/bin/jq -r --arg path "$path" '.[$path] // empty'
+    }
+  '';
 
   # Type definitions
   itemOptionsType = types.submodule {
@@ -80,10 +107,7 @@ with lib; let
     fi
   '';
 
-  # State file for tracking directory mappings
-  stateFile = "${cfg.baseDir}/.johnny-mnemonix-state.json";
-
-  # Helper to read/write state
+  # Helper to read/write state (updated to use XDG paths)
   mkStateOps = ''
     mkdir -p "${stateDir}" "${cacheDir}" "${configDir}"
 
@@ -359,6 +383,42 @@ in {
         type = types.nullOr types.str;
         default = null;
         description = "Override default XDG_CONFIG_HOME location";
+      };
+    };
+
+    git = {
+      autoFetch = mkOption {
+        type = types.bool;
+        default = true;
+        description = "Automatically fetch git repositories";
+      };
+      fetchInterval = mkOption {
+        type = types.int;
+        default = 3600;
+        description = "Interval between git fetches (in seconds)";
+      };
+      sparseByDefault = mkOption {
+        type = types.bool;
+        default = false;
+        description = "Enable sparse checkout by default for new repositories";
+      };
+    };
+
+    backup = {
+      enable = mkOption {
+        type = types.bool;
+        default = false;
+        description = "Enable automatic backups";
+      };
+      interval = mkOption {
+        type = types.enum ["hourly" "daily" "weekly"];
+        default = "daily";
+        description = "Backup frequency";
+      };
+      location = mkOption {
+        type = types.nullOr types.path;
+        default = null;
+        description = "Backup destination path";
       };
     };
   };
