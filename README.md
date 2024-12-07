@@ -1,3 +1,5 @@
+[![CI](https://github.com/username/repo/actions/workflows/ci.yml/badge.svg)](https://github.com/username/repo/actions/workflows/ci.yml)
+
 # Johnny-Mnemonix
 
 > Declarative document management using the Johnny Decimal system, powered by Nix

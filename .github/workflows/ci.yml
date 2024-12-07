@@ -1,0 +1,91 @@
+name: CI
+
+on:
+  pull_request:
+  workflow_dispatch:
+  push:
+    branches: [main, master]
+    tags: ["v?[0-9]+.[0-9]+.[0-9]+*"]
+
+# Prevent concurrent runs of the same workflow on the same branch
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # Main CI workflow using Determinate CI
+  DeterminateCI:
+    uses: DeterminateSystems/ci/.github/workflows/workflow.yml@main
+    permissions:
+      id-token: "write"
+      contents: "read"
+    with:
+      # Custom runner map for better performance
+      runner-map: |
+        {
+          "aarch64-darwin": "macos-latest-xlarge",
+          "aarch64-linux": "ubuntu-latest",
+          "x86_64-darwin": "macos-latest-xlarge",
+          "x86_64-linux": "ubuntu-latest"
+        }
+      # Make builds public on FlakeHub
+      visibility: "public"
+
+  # Check flake health
+  check-flake:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: DeterminateSystems/nix-installer-action@main
+      - uses: DeterminateSystems/magic-nix-cache-action@main
+      - uses: DeterminateSystems/flake-checker-action@main
+        with:
+          fail-mode: true # Make CI fail if there are issues
+          
+  # Keep dependencies up to date
+  update-flake:
+    # Don't run on PRs
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: DeterminateSystems/nix-installer-action@main
+      - uses: DeterminateSystems/magic-nix-cache-action@main
+      - uses: DeterminateSystems/update-flake-lock@main
+        with:
+          pr-title: "chore: update flake.lock" 
+          pr-labels: |
+            dependencies
+            automated
+          # Run weekly to avoid too frequent updates
+          token: ${{ secrets.GITHUB_TOKEN }}
+          commit-msg: "chore: update flake dependencies"
+
+  # Additional checks for specific platforms
+  platform-checks:
+    needs: [DeterminateCI]
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+        include:
+          - os: ubuntu-latest
+            system: x86_64-linux
+          - os: macos-latest  
+            system: x86_64-darwin
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: DeterminateSystems/nix-installer-action@main
+      - uses: DeterminateSystems/magic-nix-cache-action@main
+      
+      # Run system-specific checks
+      - name: Check ${{ matrix.system }}
+        run: |
+          # Build and check the configuration for this system
+          nix build .#${{ matrix.system }}
+          
+          # Run any additional system-specific tests
+          nix flake check --system ${{ matrix.system }} 
