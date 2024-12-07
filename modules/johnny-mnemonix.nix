@@ -7,6 +7,23 @@
 with lib; let
   cfg = config.johnny-mnemonix;
 
+  # Create a wrapper script that ensures proper SSH and Git configuration
+  gitWithSsh = pkgs.writeShellScriptBin "git-with-ssh" ''
+    # Ensure SSH knows about GitHub's host key
+    if [ ! -f ~/.ssh/known_hosts ] || ! grep -q "^github.com" ~/.ssh/known_hosts; then
+      mkdir -p ~/.ssh
+      chmod 700 ~/.ssh
+      ${pkgs.openssh}/bin/ssh-keyscan github.com >> ~/.ssh/known_hosts 2>/dev/null
+    fi
+
+    # Set Git to use SSH
+    export GIT_SSH="${pkgs.openssh}/bin/ssh"
+    export PATH="${lib.makeBinPath [pkgs.git pkgs.openssh]}:$PATH"
+
+    # Run Git command
+    exec git "$@"
+  '';
+
   # Add new types for Git repository items
   gitItemType = types.submodule {
     options = {
@@ -37,12 +54,6 @@ with lib; let
 
   # Helper to create directories and clone repositories
   mkAreaDirs = areas: let
-    # Add openssh to the required packages
-    gitWithSsh = pkgs.writeShellScriptBin "git-with-ssh" ''
-      export PATH="${lib.makeBinPath [pkgs.git pkgs.openssh]}:$PATH"
-      exec git "$@"
-    '';
-
     mkCategoryDirs = areaId: areaConfig: categoryId: categoryConfig:
       concatMapStrings (itemId: let
         itemConfig = categoryConfig.items.${itemId};
@@ -251,10 +262,23 @@ in {
         packages = with pkgs; [
           git
           openssh
+          gitWithSsh # Add our wrapper script
         ];
+
+        # Add SSH configuration
+        file.".ssh/config".text = ''
+          Host github.com
+            User git
+            IdentityFile ~/.ssh/id_rsa
+            StrictHostKeyChecking accept-new
+        '';
 
         # Activation script
         activation.createJohnnyMnemonixDirs = lib.hm.dag.entryAfter ["writeBoundary"] ''
+          # Ensure SSH directory exists with correct permissions
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+
           # Create Johnny Mnemonix directories...
           ${mkAreaDirs cfg.areas}
         '';
