@@ -41,10 +41,11 @@ jobs:
       - uses: DeterminateSystems/flake-checker-action@main
         with:
           fail-mode: true # Make CI fail if there are issues
-          
+
   # Keep dependencies up to date
+  # ... existing code ...
+
   update-flake:
-    # Don't run on PRs
     if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     permissions:
@@ -52,17 +53,36 @@ jobs:
       pull-requests: write
     steps:
       - uses: actions/checkout@v4
+        with:
+          # Important: Fetch all history for updating flake references
+          fetch-depth: 0
+
       - uses: DeterminateSystems/nix-installer-action@main
       - uses: DeterminateSystems/magic-nix-cache-action@main
-      - uses: DeterminateSystems/update-flake-lock@main
+
+      # Update flake.lock
+      - name: Update flake.lock
+        uses: DeterminateSystems/update-flake-lock@main
         with:
-          pr-title: "chore: update flake.lock" 
+          # Required for creating PRs
+          token: ${{ secrets.GITHUB_TOKEN }}
+          # PR settings
+          pr-title: "chore: update flake.lock"
           pr-labels: |
             dependencies
             automated
-          # Run weekly to avoid too frequent updates
-          token: ${{ secrets.GITHUB_TOKEN }}
+          # Commit settings
           commit-msg: "chore: update flake dependencies"
+          branch: "update-flake-lock"
+          # Optional: Add PR body
+          pr-body: |
+            Automated flake update via GitHub Actions
+
+            This PR updates the flake.lock file to the latest versions of all inputs.
+
+          # Optional: Configure git author
+          git-author-name: "github-actions[bot]"
+          git-author-email: "github-actions[bot]@users.noreply.github.com"
 
   # Additional checks for specific platforms
   platform-checks:
@@ -73,19 +93,19 @@ jobs:
         include:
           - os: ubuntu-latest
             system: x86_64-linux
-          - os: macos-latest  
+          - os: macos-latest
             system: x86_64-darwin
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
       - uses: DeterminateSystems/nix-installer-action@main
       - uses: DeterminateSystems/magic-nix-cache-action@main
-      
+
       # Run system-specific checks
       - name: Check ${{ matrix.system }}
         run: |
           # Build and check the configuration for this system
           nix build .#${{ matrix.system }}
-          
+
           # Run any additional system-specific tests
-          nix flake check --system ${{ matrix.system }} 
+          nix flake check --system ${{ matrix.system }}
