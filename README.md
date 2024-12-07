@@ -85,18 +85,15 @@ Each component follows the Johnny Decimal system, `analogizing a Book Case`
 
 ### Development Environment
 
-This project uses `cached-nix-shell` for faster development environment loading. To get started:
+To get started:
 
 ```bash
 # Clone the repository
 git clone https://github.com/lessuselesss/johnny-mnemonix
 cd johnny-mnemonix
 
-# First time setup (builds cache)
-nix-shell
-
-# Subsequent development sessions
-cached-nix-shell
+# Enter development environment
+nix develop
 ```
 
 The development environment provides:
