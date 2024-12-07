@@ -258,6 +258,33 @@ with lib; let
       echo "# Deprecated: ${path} - ${reason}" >> "${cfg.baseDir}/.structure-changes"
     fi
   '';
+
+  # Helper to validate Johnny Decimal structure
+  validateStructure = areas: let
+    validateId = id: pattern:
+      if builtins.match pattern id == null
+      then throw "Invalid ${pattern} ID: ${id}"
+      else true;
+
+    validateArea = id: _: validateId id "[0-9]{2}-[0-9]{2}";
+    validateCategory = id: _: validateId id "[0-9]{2}";
+    validateItem = id: _: validateId id "[0-9]{2}.[0-9]{2}";
+
+    # Run validations
+    areaChecks = lib.mapAttrs validateArea areas;
+    categoryChecks =
+      lib.concatMapAttrs
+      (areaId: area: lib.mapAttrs validateCategory area.categories)
+      areas;
+    itemChecks =
+      lib.concatMapAttrs
+      (areaId: area:
+        lib.concatMapAttrs
+        (catId: cat: lib.mapAttrs validateItem cat.items)
+        area.categories)
+      areas;
+  in
+    areaChecks && categoryChecks && itemChecks;
 in {
   options.johnny-mnemonix = {
     enable = mkEnableOption "johnny-mnemonix";
@@ -331,6 +358,9 @@ in {
         };
 
         activation.createJohnnyMnemonixDirs = lib.hm.dag.entryAfter ["writeBoundary"] ''
+          # Validate structure before making changes
+          ${validateStructure cfg.areas}
+
           # Store previous structure hash for comparison
           structureHashFile="${cfg.baseDir}/.structure-hash"
           currentHash=$(echo '${builtins.toJSON cfg.areas}' | sha256sum | cut -d' ' -f1)
