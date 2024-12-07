@@ -7,7 +7,39 @@
 with lib; let
   cfg = config.johnny-mnemonix;
 
-  # Create a wrapper script that ensures proper SSH and Git configuration
+  # Type definitions
+  itemOptionsType = types.submodule {
+    options = {
+      name = mkOption {
+        type = types.str;
+        description = "Directory name for the item";
+      };
+      url = mkOption {
+        type = types.nullOr types.str;
+        default = null;
+        description = "Optional Git repository URL";
+      };
+      ref = mkOption {
+        type = types.str;
+        default = "main";
+        description = "Git reference (branch, tag, or commit)";
+      };
+      sparse = mkOption {
+        type = types.listOf types.str;
+        default = [];
+        description = "Sparse checkout patterns (empty for full checkout)";
+      };
+      target = mkOption {
+        type = types.nullOr types.str;
+        default = null;
+        description = "Optional path to create symlink to";
+      };
+    };
+  };
+
+  itemType = types.either types.str itemOptionsType;
+
+  # Git wrapper
   gitWithSsh = pkgs.writeShellScriptBin "git-with-ssh" ''
     # Ensure SSH knows about GitHub's host key
     if [ ! -f ~/.ssh/known_hosts ] || ! grep -q "^github.com" ~/.ssh/known_hosts; then
@@ -24,88 +56,106 @@ with lib; let
     exec git "$@"
   '';
 
-  # Rename to itemOptionsType since it now handles more than just git
-  itemOptionsType = types.submodule {
-    options = {
-      name = mkOption {
-        type = types.str;
-        description = "Directory name for the item";
-      };
-      # Git options
-      url = mkOption {
-        type = types.nullOr types.str;
-        default = null;
-        description = "Optional Git repository URL";
-      };
-      ref = mkOption {
-        type = types.str;
-        default = "main";
-        description = "Git reference (branch, tag, or commit)";
-      };
-      sparse = mkOption {
-        type = types.listOf types.str;
-        default = [];
-        description = "Sparse checkout patterns (empty for full checkout)";
-      };
-      # Symlink option
-      target = mkOption {
-        type = types.nullOr types.str;
-        default = null;
-        description = "Optional path to create symlink to";
-      };
-    };
-  };
+  # Generate a stable hash for directory contents
+  mkContentHash = path: ''
+    if [ -d "${path}" ]; then
+      find "${path}" -type f -exec sha256sum {} \; | sort | sha256sum | cut -d' ' -f1
+    else
+      echo "0000000000000000000000000000000000000000000000000000000000000000"
+    fi
+  '';
 
-  # Update the item type to support both strings and the new options
-  itemType = types.either types.str itemOptionsType;
+  # State file for tracking directory mappings
+  stateFile = "${cfg.baseDir}/.johnny-mnemonix-state.json";
 
-  # Helper to create directories and clone repositories
+  # Helper to read/write state
+  mkStateOps = ''
+    read_state() {
+      if [ -f "${stateFile}" ]; then
+        cat "${stateFile}"
+      else
+        echo "{}"
+      fi
+    }
+
+    write_state() {
+      echo "$1" > "${stateFile}"
+    }
+
+    update_state() {
+      local path="$1"
+      local hash="$2"
+      local state=$(read_state)
+      echo "$state" | ${pkgs.jq}/bin/jq --arg path "$path" --arg hash "$hash" '. + {($path): $hash}'
+    }
+  '';
+
+  # Enhanced directory handling
   mkAreaDirs = areas: let
-    mkCategoryDirs = areaId: areaConfig: categoryId: categoryConfig:
-      concatMapStrings (itemId: let
-        itemConfig = categoryConfig.items.${itemId};
-        baseItemPath = "${cfg.baseDir}/${areaId}${cfg.spacer}${areaConfig.name}/${categoryId}${cfg.spacer}${categoryConfig.name}/${itemId}";
-      in
-        if isString itemConfig
+    mkCategoryDirs = areaId: areaConfig: categoryId: categoryConfig: let
+      newPath = "${cfg.baseDir}/${areaId}${cfg.spacer}${areaConfig.name}/${categoryId}${cfg.spacer}${categoryConfig.name}";
+    in ''
+      ${mkStateOps}
+
+      # Generate hash of current state
+      current_hash=$(${mkContentHash newPath})
+
+      # Find matching directory by content hash
+      state=$(read_state)
+      matching_path=$(echo "$state" | ${pkgs.jq}/bin/jq -r --arg hash "$current_hash" \
+        'to_entries | map(select(.value == $hash)) | .[0].key // empty')
+
+      if [ -n "$matching_path" ] && [ "$matching_path" != "${newPath}" ]; then
+        # Found matching content at different path - handle rename
+        echo "# Content match found: $matching_path -> ${newPath}" >> "${cfg.baseDir}/.structure-changes"
+
+        if [ ! -d "${newPath}" ]; then
+          # Move directory to new location
+          mkdir -p "$(dirname "${newPath}")"
+          mv "$matching_path" "${newPath}"
+        else
+          # Merge contents if target exists
+          cp -r "$matching_path"/* "${newPath}/" 2>/dev/null || true
+          rm -rf "$matching_path"
+        fi
+      fi
+
+      # Create directory if it doesn't exist
+      mkdir -p "${newPath}"
+
+      # Update state with new hash
+      new_hash=$(${mkContentHash newPath})
+      new_state=$(update_state "${newPath}" "$new_hash")
+      write_state "$new_state"
+
+      # Handle Git repositories or symlinks if specified
+      ${
+        if categoryConfig.items.${itemId}.url != null
         then ''
-          mkdir -p "${baseItemPath}${cfg.spacer}${itemConfig}"
+          if [ ! -d "${newPath}" ]; then
+            ${gitWithSsh}/bin/git-with-ssh clone ${
+            if categoryConfig.items.${itemId}.sparse != []
+            then "--sparse"
+            else ""
+          } \
+              --branch ${categoryConfig.items.${itemId}.ref} \
+              ${categoryConfig.items.${itemId}.url} "${newPath}"
+
+            ${optionalString (categoryConfig.items.${itemId}.sparse != []) ''
+            cd "${newPath}"
+            ${gitWithSsh}/bin/git-with-ssh sparse-checkout set ${concatStringsSep " " categoryConfig.items.${itemId}.sparse}
+          ''}
+          fi
         ''
-        else ''
-          # Create parent directory if it doesn't exist
-          mkdir -p "$(dirname "${baseItemPath}")"
-
-          ${
-            if itemConfig.url != null
-            then ''
-              # Git repository handling
-              if [ ! -d "${baseItemPath}${cfg.spacer}${itemConfig.name}" ]; then
-                ${gitWithSsh}/bin/git-with-ssh clone ${
-                if itemConfig.sparse != []
-                then "--sparse"
-                else ""
-              } \
-                  --branch ${itemConfig.ref} \
-                  ${itemConfig.url} "${baseItemPath}${cfg.spacer}${itemConfig.name}"
-
-                ${optionalString (itemConfig.sparse != []) ''
-                cd "${baseItemPath}${cfg.spacer}${itemConfig.name}"
-                ${gitWithSsh}/bin/git-with-ssh sparse-checkout set ${concatStringsSep " " itemConfig.sparse}
-              ''}
-              fi
-            ''
-            else if itemConfig.target != null
-            then ''
-              # Symlink handling
-              if [ ! -e "${baseItemPath}${cfg.spacer}${itemConfig.name}" ]; then
-                ln -s "${itemConfig.target}" "${baseItemPath}${cfg.spacer}${itemConfig.name}"
-              fi
-            ''
-            else ''
-              # Regular directory
-              mkdir -p "${baseItemPath}${cfg.spacer}${itemConfig.name}"
-            ''
-          }
-        '') (attrNames categoryConfig.items);
+        else if categoryConfig.items.${itemId}.target != null
+        then ''
+          if [ ! -e "${newPath}" ]; then
+            ln -s "${categoryConfig.items.${itemId}.target}" "${newPath}"
+          fi
+        ''
+        else ""
+      }
+    '';
 
     mkAreaDir = areaId: areaConfig:
       concatMapStrings (
@@ -113,20 +163,14 @@ with lib; let
           mkCategoryDirs areaId areaConfig categoryId areaConfig.categories.${categoryId}
       ) (attrNames areaConfig.categories);
   in ''
-    # Ensure base directory exists first
+    # Ensure base directory exists
     mkdir -p "${cfg.baseDir}"
-
-    # Handle any renamed directories from previous configurations
-    ${concatMapStrings (
-      oldPath:
-        mkSafeRename oldPath "${cfg.baseDir}/new-${oldPath}"
-    ) (attrNames areas)}
 
     # Create area directories
     ${concatMapStrings (areaId: mkAreaDir areaId areas.${areaId}) (attrNames areas)}
   '';
 
-  # Helper to create shell functions
+  # Shell functions
   mkShellFunctions = prefix: ''
     # Basic navigation
     ${prefix}() {
@@ -175,9 +219,8 @@ with lib; let
       find "${cfg.baseDir}" -type d -name "*$1*"
     }
 
-    # Basic command completion
+    # Shell completion
     if [[ -n "$ZSH_VERSION" ]]; then
-      # ZSH completion
       compdef _jm_completion ${prefix}
       compdef _jm_completion ${prefix}ls
       compdef _jm_completion ${prefix}find
@@ -205,7 +248,6 @@ with lib; let
       }
 
     elif [[ -n "$BASH_VERSION" ]]; then
-      # Bash completion
       complete -F _jm_completion ${prefix}
       complete -F _jm_completion ${prefix}ls
       complete -F _jm_completion ${prefix}find
@@ -231,58 +273,6 @@ with lib; let
       }
     fi
   '';
-
-  # Helper function to safely rename directories
-  mkSafeRename = oldPath: newPath: ''
-    if [ -d "${oldPath}" ] && [ ! -d "${newPath}" ]; then
-      # Comment out old path instead of removing
-      # mv "${oldPath}" "${newPath}"
-      echo "# Renamed: ${oldPath} -> ${newPath}" >> "${cfg.baseDir}/.structure-changes"
-    fi
-  '';
-
-  # Helper function to handle moved items
-  mkHandleMoved = oldPath: newPath: ''
-    if [ -d "${oldPath}" ] && [ ! -d "${newPath}" ]; then
-      # Comment out old path instead of moving
-      # mv "${oldPath}/*" "${newPath}/"
-      echo "# Moved: ${oldPath} -> ${newPath}" >> "${cfg.baseDir}/.structure-changes"
-    fi
-  '';
-
-  # Helper function to mark deprecated paths
-  mkMarkDeprecated = path: reason: ''
-    if [ -d "${path}" ]; then
-      # Comment out instead of removing
-      # touch "${path}/.deprecated"
-      echo "# Deprecated: ${path} - ${reason}" >> "${cfg.baseDir}/.structure-changes"
-    fi
-  '';
-
-  # Helper to validate Johnny Decimal structure
-  validateStructure = areas: let
-    validateId = id: pattern:
-      if builtins.match pattern id == null
-      then throw "Invalid ${pattern} ID: ${id}"
-      else true;
-
-    validateArea = id: _: validateId id "[0-9]{2}-[0-9]{2}";
-    validateCategory = id: _: validateId id "[0-9]{2}";
-    validateItem = id: _: validateId id "[0-9]{2}.[0-9]{2}";
-
-    # Run validations and convert to boolean
-    areaChecks = lib.all (x: x) (lib.attrValues (lib.mapAttrs validateArea areas));
-    categoryChecks = lib.all (x: x) (lib.attrValues (lib.concatMapAttrs
-      (areaId: area: lib.mapAttrs validateCategory area.categories)
-      areas));
-    itemChecks = lib.all (x: x) (lib.attrValues (lib.concatMapAttrs
-      (areaId: area:
-        lib.concatMapAttrs
-        (catId: cat: lib.mapAttrs validateItem cat.items)
-        area.categories)
-      areas));
-  in
-    areaChecks && categoryChecks && itemChecks;
 in {
   options.johnny-mnemonix = {
     enable = mkEnableOption "johnny-mnemonix";
@@ -296,7 +286,7 @@ in {
       type = types.str;
       default = " ";
       example = "-";
-      description = "Character(s) to use between ID and name (e.g., '11${placeholder "spacer"}Finance')";
+      description = "Character(s) to use between ID and name";
     };
 
     shell = {
@@ -326,7 +316,7 @@ in {
                 };
                 items = mkOption {
                   type = types.attrsOf itemType;
-                  description = "Items in the category (string or git repository)";
+                  description = "Items in the category";
                 };
               };
             });
@@ -339,52 +329,34 @@ in {
     };
   };
 
-  config = mkIf cfg.enable (mkMerge [
-    {
-      home = {
-        packages = with pkgs; [
-          git
-          openssh
-          gitWithSsh
-        ];
+  config = mkIf cfg.enable {
+    home = {
+      packages = with pkgs; [
+        git
+        openssh
+        gitWithSsh
+        jq
+      ];
 
-        file = {
-          # SSH configuration
-          ".ssh/config".text = ''
-            Host github.com
-              User git
-              IdentityFile ~/.ssh/id_rsa
-              StrictHostKeyChecking accept-new
-          '';
+      activation.createJohnnyMnemonixDirs = lib.hm.dag.entryAfter ["writeBoundary"] ''
+        ${mkAreaDirs cfg.areas}
+      '';
+    };
 
-          # Shell functions
-          ".local/share/johnny-mnemonix/shell-functions.sh".text =
-            mkShellFunctions cfg.shell.prefix;
-        };
+    programs.zsh = mkIf cfg.shell.enable {
+      enable = true;
+      enableCompletion = true;
+      initExtraFirst = ''
+        ${mkShellFunctions cfg.shell.prefix}
+      '';
+    };
 
-        activation.createJohnnyMnemonixDirs = lib.hm.dag.entryAfter ["writeBoundary"] ''
-          # Validate structure before making changes
-          ${
-            if validateStructure cfg.areas
-            then ''
-              # Structure is valid, proceed with creation
-              ${mkAreaDirs cfg.areas}
-            ''
-            else "exit 1"
-          }
-        '';
-      };
-
-      programs.zsh = mkIf cfg.shell.enable {
-        enable = true;
-        enableCompletion = true;
-        initExtraFirst = ''
-          # Source johnny-mnemonix functions
-          if [ -f $HOME/.local/share/johnny-mnemonix/shell-functions.sh ]; then
-            source $HOME/.local/share/johnny-mnemonix/shell-functions.sh
-          fi
-        '';
-      };
-    }
-  ]);
+    programs.bash = mkIf cfg.shell.enable {
+      enable = true;
+      enableCompletion = true;
+      initExtra = ''
+        ${mkShellFunctions cfg.shell.prefix}
+      '';
+    };
+  };
 }
