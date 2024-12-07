@@ -1,20 +1,40 @@
-[![CI](https://github.com/username/repo/actions/workflows/ci.yml/badge.svg)](https://github.com/username/repo/actions/workflows/ci.yml)
+[![CI](https://github.com/lessuselesss/johnny-mnemonix/actions/workflows/ci.yml/badge.svg)](https://github.com/lessuselesss/johnny-mnemonix/actions/workflows/ci.yml)
 
 # Johnny-Mnemonix
 
-> Declarative document management using the Johnny Decimal system, powered by Nix
+> Declarative document management using the Johnny Decimal system, powered by Nix Flakes
 
 Johnny-Mnemonix is a Home Manager module that brings the power of declarative configuration to your document management, implementing the [Johnny Decimal](https://johnnydecimal.com/) system in a Nix-native way. It provides a structured, reproducible approach to organizing your `$HOME/Documents` directory (aka your `$HOMEOFFICE`).
+
+**Note**: Johnny-Mnemonix is designed exclusively for Nix Flakes and does not support legacy Nix usage.
 
 ## Features
 
 - 🏗️ **Declarative Structure**: Define your entire document hierarchy in Nix, ensuring consistency across systems
 - 📁 **Johnny Decimal Implementation**: First-class support for the [Johnny Decimal](https://johnnydecimal.com/) organizational system
-- 🔄 **XDG Compliance**: Follows XDG Base Directory specifications for configuration and cache data
-- 📝 **Typst Integration**: Seamless integration with [Typix](https://github.com/loqusion/typix) for deterministic document compilation
-- 🔍 **Smart Search**: Quick document location using Johnny Decimal codes
-- 🔄 **Version Control Ready**: Designed to work well with Git for document versioning
+- 🔄 **XDG Compliance**:
+  - Follows XDG Base Directory specifications for configuration and cache data
+  - Maintains state tracking under `${XDG_STATE_HOME}/johnny-mnemonix`
+  - Handles directory structure changes gracefully
+- 🔄 **Version Control Ready**:
+  - Designed to work well with Git for document versioning
+  - Native support for Git repositories in the document structure
+  - Symlink support for shared resources
 - 🏠 **Home Manager Native**: Integrates naturally with your existing Home Manager configuration
+
+## Requirements
+
+- Nix with flakes enabled:
+
+```nix
+{
+  nix = {
+    extraOptions = ''
+      experimental-features = nix-command flakes
+    '';
+  };
+}
+```
 
 ## Directory Structure
 
@@ -42,27 +62,72 @@ $HOMEOFFICE/ #($HOME/Documents/)
 ```
 <img src="https://johnnydecimal.com/img/v6/11.01A-Diagram_1552_NYC--dtop-1_resize-dark-cx-1000x609.png" style="max-width: 800px; width: 100%" alt="Johnny.Decimal system diagram">
 
-Each component follows the Johnny Decimal system, `analogizing a Book Case`  
+Each component follows the Johnny Decimal system, `analogizing a Book Case`
 
-`shelf` 
+`shelf`
 
 - **Areas**: Groupings of categories (10-19, 20-29, etc.)
-  
+
 `box`
 
 - **Categories**: Groupings of items (11, 12, etc.)
-  
+
 `book`
 
-- **IDs**: Counter starting at 01 (11.01, 11.02, etc.) 
+- **IDs**: Counter starting at 01 (11.01, 11.02, etc.)
 
-## Configuration
+## Development
 
-See our [documentation](./docs/configuration.md) for detailed configuration options and examples.
+### Prerequisites
 
-## Why Johnny-Mnemonix?
+- Nix with flakes enabled
+- Git
 
-The name combines "Johnny Decimal" with "Nix" and pays homage to William Gibson's "Johnny Mnemonic" - a character who stores digital data in his brain. Similarly, Johnny-Mnemonix helps you store and organize your digital life in a structured, reproducible way.
+### Development Environment
+
+This project uses `cached-nix-shell` for faster development environment loading. To get started:
+
+```bash
+# Clone the repository
+git clone https://github.com/lessuselesss/johnny-mnemonix
+cd johnny-mnemonix
+
+# First time setup (builds cache)
+nix-shell
+
+# Subsequent development sessions
+cached-nix-shell
+```
+
+The development environment provides:
+- Pre-commit hooks for code quality
+- Nix formatting with Alejandra
+- Static analysis with Statix
+- Dead code detection with Deadnix
+- Nix LSP (nil) for better IDE integration
+
+### Code Quality Tools
+
+Pre-commit hooks are automatically installed and run on each commit. They check for:
+- Proper formatting (Alejandra)
+- Static analysis (Statix)
+- Dead code (Deadnix)
+- Basic file hygiene (trailing whitespace, file endings, etc.)
+- Nix flake correctness
+
+To run checks manually:
+
+```bash
+pre-commit run --all-files
+```
+
+### Continuous Integration
+
+Our CI pipeline (powered by [Determinate Systems](https://determinate.systems/)) runs:
+1. Pre-commit checks
+2. Multi-platform builds (NixOS, nix-darwin)
+3. Flake checks
+4. Dependency updates
 
 ## Installation & Usage
 
@@ -101,7 +166,9 @@ In your `home.nix` (or other Home Manager configuration file), define your docum
     enable = true;
     # Optional: customize base directory
     baseDir = "${config.home.homeDirectory}/Documents";
-    
+    # Optional: customize the spacer character used in directory names
+    spacer = " ";  # Default is a single space
+
     areas = {
       "10-19" = {
         name = "Personal";
@@ -110,7 +177,16 @@ In your `home.nix` (or other Home Manager configuration file), define your docum
             name = "Finance";
             items = {
               "11.01" = "Budget";
-              "11.02" = "Investments";
+              "11.02" = {
+                name = "Investment Tracker";
+                url = "git@github.com:user/investments.git";
+                ref = "main";  # Optional: specify branch/ref
+                sparse = [];   # Optional: sparse checkout patterns
+              };
+              "11.03" = {
+                name = "Shared Documents";
+                target = "/path/to/shared/docs";  # Symlink target
+              };
             };
           };
           "12" = {
@@ -128,7 +204,10 @@ In your `home.nix` (or other Home Manager configuration file), define your docum
           "21" = {
             name = "Projects";
             items = {
-              "21.01" = "Current Project";
+              "21.01" = {
+                name = "Current Project";
+                url = "https://github.com/company/project.git";
+              };
               "21.02" = "Project Archive";
             };
           };
@@ -184,40 +263,38 @@ cd ~/Documents/10-19\ Personal/11\ Finance/11.01\ Budget
 - The `jd` alias is available in both bash and zsh
 - You can modify the structure by updating your configuration and running `home-manager switch` again
 
-## Integration with Typix
+## Roadmap
 
-Johnny-Mnemonix seamlessly integrates with Typix for document compilation. Define your Typst documents within your Johnny Decimal structure:
+Future enhancements planned for Johnny-Mnemonix:
 
-```nix
-{
-  mnemonic.documents = {
-    "11.01.budget-2024" = {
-      source = ./documents/budget-2024.typ;
-      engine = "typst";
-      dependencies = {
-        fonts = [ pkgs.inter ];
-        data = [ ./data/expenses.csv ];
-      };
-    };
-  };
-}
-```
+### Near-term
+- [ ] Shell navigation commands (`jm`, `jmls`, etc.)
+- [ ] Smart search functionality
+- [ ] Integration with [Typix](https://github.com/loqusion/typix) for deterministic document compilation
+- [ ] Integration with [ragenix](https://github.com/yaxitech/ragenix) for encrypted documents
+- [ ] Git repository management within the document structure
+- [ ] Automatic backup configuration
 
-## Directory Navigation
+### Mid-term
+- [ ] Document templates system
+- [ ] Integration with popular document editors
+- [ ] Document metadata management
+- [ ] Advanced search capabilities with filtering and tagging
 
-Johnny-Mnemonix provides simple, fast navigation to your documents using Johnny Decimal codes. Once configured, you can quickly navigate to any location in your document hierarchy:
-
-```bash
-# Navigate directly to a specific ID location
-cd ~$11.01   # Goes to $HOMEOFFICE/10-19 Personal/11 Finance/11.01 Budget/
-
-# Or use the full path including document name
-cd ~$11.01.annual-budget   # Goes to the specific document location
-```
+### Long-term
+- [ ] AI-powered document organization suggestions
+- [ ] Extended encryption options and key management
+- [ ] Document integrity verification
+- [ ] Version control policy management
 
 ## Contributing
 
-Contributions are welcome! See [CONTRIBUTING.md](./CONTRIBUTING.md) for guidelines.
+Contributions are welcome! Please see [CONTRIBUTING.md](./CONTRIBUTING.md) for guidelines.
+
+Before submitting a PR:
+1. Enter the development environment: `cached-nix-shell`
+2. Ensure all pre-commit hooks pass: `pre-commit run --all-files`
+3. Verify CI checks pass locally: `nix flake check`
 
 ## License
 
