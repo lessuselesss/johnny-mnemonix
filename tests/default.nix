@@ -38,26 +38,24 @@
               # Regular string item
               "11.01" = "Budget";
 
-              # HTTPS repository
+              # Named directory without Git
               "11.02" = {
+                name = "Templates";
+              };
+
+              # Git repository with HTTPS
+              "11.03" = {
                 name = "nix-core";
                 url = "https://github.com/nixos/nix";
                 ref = "master";
               };
 
-              # SSH repository
-              "11.03" = {
+              # Git repository with SSH and sparse checkout
+              "11.04" = {
                 name = "nixpkgs-docs";
                 url = "git@github.com:NixOS/nixpkgs.git";
                 ref = "master";
                 sparse = ["README.md" "LICENSE"];
-              };
-
-              # Another SSH repository
-              "11.04" = {
-                name = "private-repo";
-                url = "git@github.com:lessuselesss/private-repo.git";
-                ref = "main";
               };
             };
           };
@@ -168,6 +166,74 @@ in
               f"su ${testUser} -c 'cd /home/${testUser}/Documents/10-19\\ Personal/11\\ Projects/11.03\\ nixpkgs-docs && git fetch'"
           )
 
-      # ... (previous tests remain) ...
+      with subtest("Directory Types"):
+          # Test string-based directory
+          machine.succeed(
+              "test -d /home/${testUser}/Documents/10-19\\ Personal/11\\ Projects/11.01\\ Budget"
+          )
+
+          # Test named directory without Git
+          machine.succeed(
+              "test -d /home/${testUser}/Documents/10-19\\ Personal/11\\ Projects/11.02\\ Templates"
+          )
+          # Verify it's not a Git repository
+          machine.fail(
+              "test -d /home/${testUser}/Documents/10-19\\ Personal/11\\ Projects/11.02\\ Templates/.git"
+          )
+
+          # Test Git repository with HTTPS
+          machine.succeed(
+              "test -d /home/${testUser}/Documents/10-19\\ Personal/11\\ Projects/11.03\\ nix-core"
+          )
+          machine.succeed(
+              "test -d /home/${testUser}/Documents/10-19\\ Personal/11\\ Projects/11.03\\ nix-core/.git"
+          )
+
+          # Test Git repository with SSH and sparse checkout
+          machine.succeed(
+              "test -d /home/${testUser}/Documents/10-19\\ Personal/11\\ Projects/11.04\\ nixpkgs-docs"
+          )
+          machine.succeed(
+              "test -d /home/${testUser}/Documents/10-19\\ Personal/11\\ Projects/11.04\\ nixpkgs-docs/.git"
+          )
+
+      with subtest("Directory Permissions"):
+          # Check permissions for string-based directory
+          machine.succeed(
+              f"test $(stat -c '%a' '/home/{testUser}/Documents/10-19 Personal/11 Projects/11.01 Budget') = '{testMode}'"
+          )
+
+          # Check permissions for named directory
+          machine.succeed(
+              f"test $(stat -c '%a' '/home/{testUser}/Documents/10-19 Personal/11 Projects/11.02 Templates') = '{testMode}'"
+          )
+
+          # Check permissions for Git repositories
+          machine.succeed(
+              f"test $(stat -c '%a' '/home/{testUser}/Documents/10-19 Personal/11 Projects/11.03 nix-core') = '{testMode}'"
+          )
+          machine.succeed(
+              f"test $(stat -c '%a' '/home/{testUser}/Documents/10-19 Personal/11 Projects/11.04 nixpkgs-docs') = '{testMode}'"
+          )
+
+      with subtest("Git Repository Content"):
+          # Verify HTTPS repository content
+          machine.succeed(
+              "test -f '/home/${testUser}/Documents/10-19 Personal/11 Projects/11.03 nix-core/README.md'"
+          )
+
+          # Verify sparse checkout
+          machine.succeed(
+              "test -f '/home/${testUser}/Documents/10-19 Personal/11 Projects/11.04 nixpkgs-docs/README.md'"
+          )
+          machine.succeed(
+              "test -f '/home/${testUser}/Documents/10-19 Personal/11 Projects/11.04 nixpkgs-docs/LICENSE'"
+          )
+          # Verify other files are not present
+          machine.fail(
+              "test -d '/home/${testUser}/Documents/10-19 Personal/11 Projects/11.04 nixpkgs-docs/nixos'"
+          )
+
+      # ... (remaining tests) ...
     '';
   }

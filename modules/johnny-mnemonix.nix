@@ -29,18 +29,18 @@ with lib; let
     options = {
       name = mkOption {
         type = types.str;
-        description = "Directory name for the repository";
+        description = "Directory name for the item";
       };
       url = mkOption {
-        type = types.str;
-        description = "Git repository URL";
+        type = types.nullOr types.str;
+        default = null;
+        description = "Optional Git repository URL";
       };
       ref = mkOption {
         type = types.str;
         default = "main";
         description = "Git reference (branch, tag, or commit)";
       };
-      # Optional: Add sparse checkout patterns
       sparse = mkOption {
         type = types.listOf types.str;
         default = [];
@@ -68,20 +68,28 @@ with lib; let
           mkdir -p "$(dirname "${baseItemPath}")"
 
           # Use the name field for the directory
-          if [ ! -d "${baseItemPath}-${itemConfig.name}" ]; then
-            ${gitWithSsh}/bin/git-with-ssh clone ${
-            if itemConfig.sparse != []
-            then "--sparse"
-            else ""
-          } \
-              --branch ${itemConfig.ref} \
-              ${itemConfig.url} "${baseItemPath}-${itemConfig.name}"
+          ${
+            if itemConfig.url != null
+            then ''
+              if [ ! -d "${baseItemPath}-${itemConfig.name}" ]; then
+                ${gitWithSsh}/bin/git-with-ssh clone ${
+                if itemConfig.sparse != []
+                then "--sparse"
+                else ""
+              } \
+                  --branch ${itemConfig.ref} \
+                  ${itemConfig.url} "${baseItemPath}-${itemConfig.name}"
 
-            ${optionalString (itemConfig.sparse != []) ''
-            cd "${baseItemPath}-${itemConfig.name}"
-            ${gitWithSsh}/bin/git-with-ssh sparse-checkout set ${concatStringsSep " " itemConfig.sparse}
-          ''}
-          fi
+                ${optionalString (itemConfig.sparse != []) ''
+                cd "${baseItemPath}-${itemConfig.name}"
+                ${gitWithSsh}/bin/git-with-ssh sparse-checkout set ${concatStringsSep " " itemConfig.sparse}
+              ''}
+              fi
+            ''
+            else ''
+              mkdir -p "${baseItemPath}-${itemConfig.name}"
+            ''
+          }
         '') (attrNames categoryConfig.items);
 
     mkAreaDir = areaId: areaConfig:

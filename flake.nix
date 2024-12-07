@@ -36,9 +36,12 @@
       pkgs = pkgsForSystem system;
     in {
       default = pkgs.mkShell {
-        buildInputs = [
-          pkgs.nixfmt-classic
-          pkgs.nil
+        buildInputs = with pkgs; [
+          nixfmt-classic
+          nil
+          pre-commit
+          deadnix
+          statix
         ];
       };
     });
