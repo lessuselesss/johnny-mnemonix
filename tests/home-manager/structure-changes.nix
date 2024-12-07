@@ -1,8 +1,4 @@
-{
-  pkgs,
-  lib,
-  ...
-}: let
+{lib, ...}: let
   initialConfig = {
     johnny-mnemonix = {
       enable = true;
