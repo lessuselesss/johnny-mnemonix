@@ -37,12 +37,21 @@
     in {
       default = pkgs.mkShell {
         buildInputs = with pkgs; [
-          nixfmt-classic
+          git
+          alejandra # don't replace with nixfmt-*
           nil
           pre-commit
           deadnix
           statix
+          gnupg
+          pinentry-curses
         ];
+
+        # Set up GPG for git commit signing
+        shellHook = ''
+          export GPG_TTY=$(tty)
+          ${pkgs.gnupg}/bin/gpg-connect-agent updatestartuptty /bye > /dev/null
+        '';
       };
     });
 

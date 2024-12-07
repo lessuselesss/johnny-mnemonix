@@ -24,13 +24,14 @@ with lib; let
     exec git "$@"
   '';
 
-  # Add new types for Git repository items
-  gitItemType = types.submodule {
+  # Rename to itemOptionsType since it now handles more than just git
+  itemOptionsType = types.submodule {
     options = {
       name = mkOption {
         type = types.str;
         description = "Directory name for the item";
       };
+      # Git options
       url = mkOption {
         type = types.nullOr types.str;
         default = null;
@@ -46,11 +47,17 @@ with lib; let
         default = [];
         description = "Sparse checkout patterns (empty for full checkout)";
       };
+      # Symlink option
+      target = mkOption {
+        type = types.nullOr types.str;
+        default = null;
+        description = "Optional path to create symlink to";
+      };
     };
   };
 
-  # Modified item type to support both strings and git repos
-  itemType = types.either types.str gitItemType;
+  # Update the item type to support both strings and the new options
+  itemType = types.either types.str itemOptionsType;
 
   # Helper to create directories and clone repositories
   mkAreaDirs = areas: let
@@ -67,10 +74,10 @@ with lib; let
           # Create parent directory if it doesn't exist
           mkdir -p "$(dirname "${baseItemPath}")"
 
-          # Use the name field for the directory
           ${
             if itemConfig.url != null
             then ''
+              # Git repository handling
               if [ ! -d "${baseItemPath}-${itemConfig.name}" ]; then
                 ${gitWithSsh}/bin/git-with-ssh clone ${
                 if itemConfig.sparse != []
@@ -86,7 +93,15 @@ with lib; let
               ''}
               fi
             ''
+            else if itemConfig.target != null
+            then ''
+              # Symlink handling
+              if [ ! -e "${baseItemPath}-${itemConfig.name}" ]; then
+                ln -s "${itemConfig.target}" "${baseItemPath}-${itemConfig.name}"
+              fi
+            ''
             else ''
+              # Regular directory
               mkdir -p "${baseItemPath}-${itemConfig.name}"
             ''
           }

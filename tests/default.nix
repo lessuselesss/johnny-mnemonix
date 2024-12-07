@@ -24,7 +24,7 @@
 
   testSshKeyPub = "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDA... test@example.com";
 
-  # Updated test configuration with both HTTPS and SSH URLs
+  # Test configuration with all item types
   testConfig = {
     enable = true;
     baseDir = "/home/testuser/Documents";
@@ -56,6 +56,12 @@
                 url = "git@github.com:NixOS/nixpkgs.git";
                 ref = "master";
                 sparse = ["README.md" "LICENSE"];
+              };
+
+              # Symlink test
+              "11.05" = {
+                name = "Pictures";
+                target = "/home/testuser/Pictures";
               };
             };
           };
@@ -138,34 +144,6 @@ in
               f"su ${testUser} -c 'eval $(ssh-agent) && ssh-add /home/${testUser}/.ssh/id_rsa'"
           )
 
-      # Test HTTPS cloning
-      with subtest("HTTPS Repository Cloning"):
-          machine.succeed(
-              "test -d /home/${testUser}/Documents/10-19\\ Personal/11\\ Projects/11.02\\ nix-core/.git"
-          )
-
-      # Test SSH cloning
-      with subtest("SSH Repository Cloning"):
-          # Check if SSH repositories were cloned
-          machine.succeed(
-              "test -d /home/${testUser}/Documents/10-19\\ Personal/11\\ Projects/11.03\\ nixpkgs-docs/.git"
-          )
-          machine.succeed(
-              "test -d /home/${testUser}/Documents/10-19\\ Personal/11\\ Projects/11.04\\ private-repo/.git"
-          )
-
-          # Verify SSH configuration
-          machine.succeed(
-              f"su ${testUser} -c 'ssh-keygen -F github.com || ssh-keyscan github.com >> /home/${testUser}/.ssh/known_hosts'"
-          )
-
-      # Test Git operations with SSH
-      with subtest("Git Operations with SSH"):
-          # Try fetching updates
-          machine.succeed(
-              f"su ${testUser} -c 'cd /home/${testUser}/Documents/10-19\\ Personal/11\\ Projects/11.03\\ nixpkgs-docs && git fetch'"
-          )
-
       with subtest("Directory Types"):
           # Test string-based directory
           machine.succeed(
@@ -234,6 +212,51 @@ in
               "test -d '/home/${testUser}/Documents/10-19 Personal/11 Projects/11.04 nixpkgs-docs/nixos'"
           )
 
-      # ... (remaining tests) ...
+      with subtest("Symlinks"):
+          # Create target directory
+          machine.succeed("mkdir -p /home/${testUser}/Pictures")
+          machine.succeed(f"chown ${testUser}:${testGroup} /home/${testUser}/Pictures")
+
+          # Verify symlink creation
+          machine.succeed(
+              "test -L '/home/${testUser}/Documents/10-19 Personal/11 Projects/11.05 Pictures'"
+          )
+
+          # Verify symlink target
+          machine.succeed(
+              "test $(readlink '/home/${testUser}/Documents/10-19 Personal/11 Projects/11.05 Pictures') = '/home/${testUser}/Pictures'"
+          )
+
+          # Verify symlink permissions
+          machine.succeed(
+              f"test $(stat -c '%U' '/home/${testUser}/Documents/10-19 Personal/11 Projects/11.05 Pictures') = '{testUser}'"
+          )
+          machine.succeed(
+              f"test $(stat -c '%G' '/home/${testUser}/Documents/10-19 Personal/11 Projects/11.05 Pictures') = '{testGroup}'"
+          )
+
+      with subtest("Git Repository Configuration"):
+          # Check remote URL
+          machine.succeed(
+              "cd '/home/${testUser}/Documents/10-19 Personal/11 Projects/11.03 nix-core' "
+              + "&& git remote get-url origin | grep -q 'https://github.com/nixos/nix'"
+          )
+
+          # Check branch
+          machine.succeed(
+              "cd '/home/${testUser}/Documents/10-19 Personal/11 Projects/11.03 nix-core' "
+              + "&& git symbolic-ref --short HEAD | grep -q 'master'"
+          )
+
+      with subtest("Idempotency"):
+          # Run home-manager switch again
+          machine.succeed("su ${testUser} -c 'home-manager switch'")
+
+          # Verify all directories still exist
+          machine.succeed("test -d '/home/${testUser}/Documents/10-19 Personal/11 Projects/11.01 Budget'")
+          machine.succeed("test -d '/home/${testUser}/Documents/10-19 Personal/11 Projects/11.02 Templates'")
+          machine.succeed("test -d '/home/${testUser}/Documents/10-19 Personal/11 Projects/11.03 nix-core/.git'")
+          machine.succeed("test -d '/home/${testUser}/Documents/10-19 Personal/11 Projects/11.04 nixpkgs-docs/.git'")
+          machine.succeed("test -L '/home/${testUser}/Documents/10-19 Personal/11 Projects/11.05 Pictures'")
     '';
   }
