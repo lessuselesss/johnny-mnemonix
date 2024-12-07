@@ -364,55 +364,14 @@ in {
 
         activation.createJohnnyMnemonixDirs = lib.hm.dag.entryAfter ["writeBoundary"] ''
           # Validate structure before making changes
-          ${validateStructure cfg.areas}
-
-          # Store previous structure hash for comparison
-          structureHashFile="${cfg.baseDir}/.structure-hash"
-          currentHash=$(echo '${builtins.toJSON cfg.areas}' | sha256sum | cut -d' ' -f1)
-
-          # Check if structure has changed
-          if [ -f "$structureHashFile" ]; then
-            prevHash=$(cat "$structureHashFile")
-            if [ "$currentHash" != "$prevHash" ]; then
-              # Structure has changed - handle migrations
-              echo "Directory structure changes detected..."
-
-              # Create new directories
+          ${
+            if validateStructure cfg.areas
+            then ''
+              # Structure is valid, proceed with creation
               ${mkAreaDirs cfg.areas}
-
-              # Handle renamed/moved directories
-              # ... existing directory creation code ...
-
-              # Create backup of old structure (optional)
-              timestamp=$(date +%Y%m%d_%H%M%S)
-              # Comment out old structure instead of removing
-              # mv "$structureHashFile" "${structureHashFile}.backup.$timestamp"
-
-              # Log structural changes
-              echo "# Structure changes on $(date)" >> "${cfg.baseDir}/.structure-changes"
-              echo "Previous hash: $prevHash" >> "${cfg.baseDir}/.structure-changes"
-              echo "Current hash: $currentHash" >> "${cfg.baseDir}/.structure-changes"
-              echo "---" >> "${cfg.baseDir}/.structure-changes"
-            fi
-          else
-            # First time setup
-            ${mkAreaDirs cfg.areas}
-          fi
-
-          # Update structure hash
-          echo "$currentHash" > "$structureHashFile"
-
-          # Handle moved directories
-          ${concatMapStrings (
-            oldPath:
-              mkHandleMoved oldPath "${cfg.baseDir}/moved-${oldPath}"
-          ) (attrNames cfg.areas)}
-
-          # Mark deprecated paths
-          ${concatMapStrings (
-            path:
-              mkMarkDeprecated path "Deprecated in latest configuration"
-          ) (attrNames cfg.areas)}
+            ''
+            else "exit 1"
+          }
         '';
       };
 
