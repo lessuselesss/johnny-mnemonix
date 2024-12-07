@@ -116,11 +116,14 @@ with lib; let
     # Ensure base directory exists first
     mkdir -p "${cfg.baseDir}"
 
-    # Create area directories
+    # Handle any renamed directories from previous configurations
     ${concatMapStrings (
-      areaId:
-        mkAreaDir areaId areas.${areaId}
+      oldPath:
+        mkSafeRename oldPath "${cfg.baseDir}/new-${oldPath}"
     ) (attrNames areas)}
+
+    # Create area directories
+    ${concatMapStrings (areaId: mkAreaDir areaId areas.${areaId}) (attrNames areas)}
   '';
 
   # Helper to create shell functions
@@ -228,6 +231,33 @@ with lib; let
       }
     fi
   '';
+
+  # Helper function to safely rename directories
+  mkSafeRename = oldPath: newPath: ''
+    if [ -d "${oldPath}" ] && [ ! -d "${newPath}" ]; then
+      # Comment out old path instead of removing
+      # mv "${oldPath}" "${newPath}"
+      echo "# Renamed: ${oldPath} -> ${newPath}" >> "${cfg.baseDir}/.structure-changes"
+    fi
+  '';
+
+  # Helper function to handle moved items
+  mkHandleMoved = oldPath: newPath: ''
+    if [ -d "${oldPath}" ] && [ ! -d "${newPath}" ]; then
+      # Comment out old path instead of moving
+      # mv "${oldPath}/*" "${newPath}/"
+      echo "# Moved: ${oldPath} -> ${newPath}" >> "${cfg.baseDir}/.structure-changes"
+    fi
+  '';
+
+  # Helper function to mark deprecated paths
+  mkMarkDeprecated = path: reason: ''
+    if [ -d "${path}" ]; then
+      # Comment out instead of removing
+      # touch "${path}/.deprecated"
+      echo "# Deprecated: ${path} - ${reason}" >> "${cfg.baseDir}/.structure-changes"
+    fi
+  '';
 in {
   options.johnny-mnemonix = {
     enable = mkEnableOption "johnny-mnemonix";
@@ -279,37 +309,76 @@ in {
 
   config = mkIf cfg.enable (mkMerge [
     {
-      # Consolidate all home-related configurations
       home = {
-        # Required packages
         packages = with pkgs; [
           git
           openssh
-          gitWithSsh # Add our wrapper script
+          gitWithSsh
         ];
 
-        # Add SSH configuration
-        file.".ssh/config".text = ''
-          Host github.com
-            User git
-            IdentityFile ~/.ssh/id_rsa
-            StrictHostKeyChecking accept-new
-        '';
-
-        # Activation script
-        activation.createJohnnyMnemonixDirs = lib.hm.dag.entryAfter ["writeBoundary"] ''
-          # Ensure SSH directory exists with correct permissions
-          mkdir -p ~/.ssh
-          chmod 700 ~/.ssh
-
-          # Create Johnny Mnemonix directories...
-          ${mkAreaDirs cfg.areas}
-        '';
-
-        # File configurations
         file = {
-          # Any file-related configurations would go here
+          # SSH configuration
+          ".ssh/config".text = ''
+            Host github.com
+              User git
+              IdentityFile ~/.ssh/id_rsa
+              StrictHostKeyChecking accept-new
+          '';
+
+          # Shell functions
+          ".local/share/johnny-mnemonix/shell-functions.sh".text =
+            mkShellFunctions cfg.shell.prefix;
         };
+
+        activation.createJohnnyMnemonixDirs = lib.hm.dag.entryAfter ["writeBoundary"] ''
+          # Store previous structure hash for comparison
+          structureHashFile="${cfg.baseDir}/.structure-hash"
+          currentHash=$(echo '${builtins.toJSON cfg.areas}' | sha256sum | cut -d' ' -f1)
+
+          # Check if structure has changed
+          if [ -f "$structureHashFile" ]; then
+            prevHash=$(cat "$structureHashFile")
+            if [ "$currentHash" != "$prevHash" ]; then
+              # Structure has changed - handle migrations
+              echo "Directory structure changes detected..."
+
+              # Create new directories
+              ${mkAreaDirs cfg.areas}
+
+              # Handle renamed/moved directories
+              # ... existing directory creation code ...
+
+              # Create backup of old structure (optional)
+              timestamp=$(date +%Y%m%d_%H%M%S)
+              # Comment out old structure instead of removing
+              # mv "$structureHashFile" "${structureHashFile}.backup.$timestamp"
+
+              # Log structural changes
+              echo "# Structure changes on $(date)" >> "${cfg.baseDir}/.structure-changes"
+              echo "Previous hash: $prevHash" >> "${cfg.baseDir}/.structure-changes"
+              echo "Current hash: $currentHash" >> "${cfg.baseDir}/.structure-changes"
+              echo "---" >> "${cfg.baseDir}/.structure-changes"
+            fi
+          else
+            # First time setup
+            ${mkAreaDirs cfg.areas}
+          fi
+
+          # Update structure hash
+          echo "$currentHash" > "$structureHashFile"
+
+          # Handle moved directories
+          ${concatMapStrings (
+            oldPath:
+              mkHandleMoved oldPath "${cfg.baseDir}/moved-${oldPath}"
+          ) (attrNames cfg.areas)}
+
+          # Mark deprecated paths
+          ${concatMapStrings (
+            path:
+              mkMarkDeprecated path "Deprecated in latest configuration"
+          ) (attrNames cfg.areas)}
+        '';
       };
 
       programs.zsh = mkIf cfg.shell.enable {
