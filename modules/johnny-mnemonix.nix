@@ -420,10 +420,22 @@ in {
         default = null;
         description = "Backup destination path";
       };
+      time = mkOption {
+        type = types.str;
+        default = "00:00:00";
+        description = "Time of day to run backup (HH:MM:SS)";
+      };
     };
   };
 
   config = mkIf cfg.enable {
+    assertions = [
+      {
+        assertion = !cfg.backup.enable || cfg.backup.location != null;
+        message = "backup.location must be set when backup is enabled";
+      }
+    ];
+
     home = {
       packages = with pkgs; [
         git
@@ -433,6 +445,7 @@ in {
       ];
 
       activation.createJohnnyMnemonixDirs = lib.hm.dag.entryAfter ["writeBoundary"] ''
+        ${mkCacheOps}
         ${mkAreaDirs cfg.areas}
       '';
     };
@@ -451,6 +464,21 @@ in {
       initExtra = ''
         ${mkShellFunctions cfg.shell.prefix}
       '';
+    };
+
+    systemd.user.timers.johnny-mnemonix-backup = mkIf cfg.backup.enable {
+      Timer = {
+        Unit = "johnny-mnemonix-backup.service";
+        OnCalendar = let
+          calendar = {
+            hourly = "*-*-* *:00:00";
+            daily = "*-*-* ${cfg.backup.time}";
+            weekly = "Mon *-*-* ${cfg.backup.time}";
+          };
+        in
+          calendar.${cfg.backup.interval};
+        Persistent = true;
+      };
     };
   };
 }
