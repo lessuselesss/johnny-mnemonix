@@ -4,15 +4,17 @@
   pkgs,
   ...
 }:
-with lib; let
+with lib;
+with home-manager.lib; let
   cfg = config.johnny-mnemonix;
 
   # XDG paths
   xdgStateHome = cfg.xdg.stateHome or "${config.home.homeDirectory}/.local/state";
   xdgCacheHome = cfg.xdg.cacheHome or "${config.home.homeDirectory}/.cache";
   xdgConfigHome = cfg.xdg.configHome or "${config.home.homeDirectory}/.config";
+  xdgDataHome = cfg.xdg.dataHome or "${config.home.homeDirectory}/.local/share";
 
-  # State file locations
+  # Directory locations
   stateDir = "${xdgStateHome}/johnny-mnemonix";
   cacheDir = "${xdgCacheHome}/johnny-mnemonix";
   configDir = "${xdgConfigHome}/johnny-mnemonix";
@@ -123,6 +125,13 @@ with lib; let
       echo "$1" > "${stateFile}"
     }
 
+    update_state() {
+      local path="$1"
+      local hash="$2"
+      local state=$(read_state)
+      echo "$state" | ${pkgs.jq}/bin/jq --arg path "$path" --arg hash "$hash" '. + {($path): $hash}'
+    }
+
     log_change() {
       echo "$1" >> "${changesFile}"
     }
@@ -131,69 +140,49 @@ with lib; let
   # Enhanced directory handling
   mkAreaDirs = areas: let
     mkCategoryDirs = areaId: areaConfig: categoryId: categoryConfig: let
-      newPath = "${cfg.baseDir}/${areaId}${cfg.spacer}${areaConfig.name}/${categoryId}${cfg.spacer}${categoryConfig.name}";
-    in ''
-      ${mkStateOps}
+      # First, define the item handling function
+      mkItemDir = itemId: itemConfig: let
+        newPath = "${cfg.baseDir}/${areaId}${cfg.spacer}${areaConfig.name}/${categoryId}${cfg.spacer}${categoryConfig.name}/${itemId}";
+        itemDef =
+          if isString itemConfig
+          then {
+            name = itemConfig;
+            url = null;
+          }
+          else itemConfig;
+      in ''
+        mkdir -p "${newPath}"
 
-      # Generate hash of current state
-      current_hash=$(${mkContentHash newPath})
+        ${
+          if itemDef.url != null
+          then ''
+            if [ ! -d "${newPath}/.git" ]; then
+              ${gitWithSsh}/bin/git-with-ssh clone ${
+              if itemDef ? sparse && itemDef.sparse != []
+              then "--sparse"
+              else ""
+            } \
+                --branch ${itemDef.ref or "main"} \
+                ${itemDef.url} "${newPath}"
 
-      # Find matching directory by content hash
-      state=$(read_state)
-      matching_path=$(echo "$state" | ${pkgs.jq}/bin/jq -r --arg hash "$current_hash" \
-        'to_entries | map(select(.value == $hash)) | .[0].key // empty')
-
-      if [ -n "$matching_path" ] && [ "$matching_path" != "${newPath}" ]; then
-        # Found matching content at different path - handle rename
-        echo "# Content match found: $matching_path -> ${newPath}" >> "${cfg.baseDir}/.structure-changes"
-
-        if [ ! -d "${newPath}" ]; then
-          # Move directory to new location
-          mkdir -p "$(dirname "${newPath}")"
-          mv "$matching_path" "${newPath}"
-        else
-          # Merge contents if target exists
-          cp -r "$matching_path"/* "${newPath}/" 2>/dev/null || true
-          rm -rf "$matching_path"
-        fi
-      fi
-
-      # Create directory if it doesn't exist
-      mkdir -p "${newPath}"
-
-      # Update state with new hash
-      new_hash=$(${mkContentHash newPath})
-      new_state=$(update_state "${newPath}" "$new_hash")
-      write_state "$new_state"
-
-      # Handle Git repositories or symlinks if specified
-      ${
-        if categoryConfig.items.${itemId}.url != null
-        then ''
-          if [ ! -d "${newPath}" ]; then
-            ${gitWithSsh}/bin/git-with-ssh clone ${
-            if categoryConfig.items.${itemId}.sparse != []
-            then "--sparse"
-            else ""
-          } \
-              --branch ${categoryConfig.items.${itemId}.ref} \
-              ${categoryConfig.items.${itemId}.url} "${newPath}"
-
-            ${optionalString (categoryConfig.items.${itemId}.sparse != []) ''
-            cd "${newPath}"
-            ${gitWithSsh}/bin/git-with-ssh sparse-checkout set ${concatStringsSep " " categoryConfig.items.${itemId}.sparse}
-          ''}
-          fi
-        ''
-        else if categoryConfig.items.${itemId}.target != null
-        then ''
-          if [ ! -e "${newPath}" ]; then
-            ln -s "${categoryConfig.items.${itemId}.target}" "${newPath}"
-          fi
-        ''
-        else ""
-      }
-    '';
+              ${optionalString (itemDef ? sparse && itemDef.sparse != []) ''
+              cd "${newPath}"
+              ${gitWithSsh}/bin/git-with-ssh sparse-checkout set ${concatStringsSep " " itemDef.sparse}
+            ''}
+            fi
+          ''
+          else if itemDef ? target && itemDef.target != null
+          then ''
+            if [ ! -e "${newPath}" ]; then
+              ln -s "${itemDef.target}" "${newPath}"
+            fi
+          ''
+          else ""
+        }
+      '';
+    in
+      concatMapStrings (itemId: mkItemDir itemId categoryConfig.items.${itemId})
+      (attrNames categoryConfig.items);
 
     mkAreaDir = areaId: areaConfig:
       concatMapStrings (
@@ -426,6 +415,18 @@ in {
         description = "Time of day to run backup (HH:MM:SS)";
       };
     };
+
+    programs = mkOption {
+      type = types.attrsOf types.anything;
+      default = {};
+      description = "Program configurations";
+    };
+
+    home = mkOption {
+      type = types.attrsOf types.anything;
+      default = {};
+      description = "Home-manager configurations";
+    };
   };
 
   config = mkIf cfg.enable {
@@ -450,20 +451,26 @@ in {
       '';
     };
 
-    programs.zsh = mkIf cfg.shell.enable {
-      enable = true;
-      enableCompletion = true;
-      initExtraFirst = ''
-        ${mkShellFunctions cfg.shell.prefix}
-      '';
-    };
+    # Combine all programs configuration into a single attribute set
+    programs = {
+      zsh = mkIf cfg.shell.enable {
+        enable = true;
+        enableCompletion = true;
+        initExtra = mkShellFunctions cfg.shell.prefix;
+      };
 
-    programs.bash = mkIf cfg.shell.enable {
-      enable = true;
-      enableCompletion = true;
-      initExtra = ''
-        ${mkShellFunctions cfg.shell.prefix}
-      '';
+      bash = mkIf cfg.shell.enable {
+        enable = true;
+        enableCompletion = true;
+        initExtra =
+          mkShellFunctions cfg.shell.prefix
+          + ''
+            export JOHNNY_MNEMONIX_CONFIG="${configDir}"
+            export JOHNNY_MNEMONIX_CACHE="${cacheDir}"
+            export JOHNNY_MNEMONIX_DATA="${xdgDataHome}/johnny-mnemonix"
+            export JOHNNY_MNEMONIX_STATE="${stateDir}"
+          '';
+      };
     };
 
     systemd.user.timers.johnny-mnemonix-backup = mkIf cfg.backup.enable {
