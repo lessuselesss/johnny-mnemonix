@@ -8,15 +8,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
-- Initial project structure
-- Core module functionality
-- Directory structure creation
-- Shell integration (bash, zsh, fish)
-- Validation for Johnny Decimal structure
-- Documentation and examples
+- Git repository integration with sparse checkout support
+- XDG Base Directory compliance
+- Shell integration with improved navigation commands
+- Backup functionality with configurable intervals
+- State tracking for directory structure changes
 
 ### Changed
-- None
+- Shell command prefix from `jd` to `jm`
+- Directory structure handling to be more robust
 
 ### Deprecated
 - None
@@ -34,4 +34,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Initial release
 
 [Unreleased]: https://github.com/lessuselesss/johnny-mnemonix/compare/v0.1.0...HEAD
-[0.1.0]: https://github.com/lessuselesss/johnny-mnemonix/releases/tag/v0.1.0 
+[0.1.0]: https://github.com/lessuselesss/johnny-mnemonix/releases/tag/v0.1.0

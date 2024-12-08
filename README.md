@@ -161,10 +161,29 @@ In your `home.nix` (or other Home Manager configuration file), define your docum
 {
   johnny-mnemonix = {
     enable = true;
-    # Optional: customize base directory
     baseDir = "${config.home.homeDirectory}/Documents";
-    # Optional: customize the spacer character used in directory names
-    spacer = " ";  # Default is a single space
+    spacer = " "; # Character between ID and name
+
+    # Git settings
+    git = {
+      autoFetch = true;
+      fetchInterval = 1800;
+      sparseByDefault = true;
+    };
+
+    # Backup settings
+    backup = {
+      enable = true;
+      interval = "daily";
+      location = "/backup/documents";
+    };
+
+    # XDG compliance
+    xdg = {
+      stateHome = null;  # Optional override
+      cacheHome = null;  # Optional override
+      configHome = null; # Optional override
+    };
 
     areas = {
       "10-19" = {
@@ -243,11 +262,12 @@ Documents/
 After installation, you can use the provided shell alias to navigate to your document root:
 
 ```bash
-# Navigate to your document root
-jd
+# Navigate to document root
+jm
 
-# Or navigate to specific directories using standard cd commands
-cd ~/Documents/10-19\ Personal/11\ Finance/11.01\ Budget
+# Or navigate to specific locations
+jm 11.01   # Goes to first item in category 11
+jm finance  # Fuzzy finds finance-related directories
 ```
 
 ### Important Notes

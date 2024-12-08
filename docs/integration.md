@@ -66,6 +66,21 @@ For systems with multiple users:
 
 ## Shell Integration
 
+Johnny-Mnemonix provides intuitive shell commands:
+
+```bash
+# Navigate to document root
+jm
+
+# Jump to specific locations
+jm 11.01   # Goes to first item in category 11
+jm finance  # Fuzzy finds finance-related directories
+
+# List and search
+jmls        # List document root
+jmfind tax  # Find tax-related directories
+```
+
 ### Zsh Integration
 
 Johnny-Mnemonix automatically integrates with Zsh when enabled:
@@ -76,7 +91,7 @@ Johnny-Mnemonix automatically integrates with Zsh when enabled:
     enable = true;
     prefix = "jm";  # Default prefix
   };
-  
+
   programs.zsh.enable = true;  # Required for Zsh integration
 }
 ```
@@ -91,7 +106,7 @@ Similar configuration for Bash users:
     enable = true;
     prefix = "jm";
   };
-  
+
   programs.bash.enable = true;  # Required for Bash integration
 }
 ```

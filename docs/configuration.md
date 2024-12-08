@@ -178,7 +178,7 @@ sparse = [
 
   # Configuration files
   "config/*.json"         # JSON configs in config/
-  ".*rc"                 # All RC files in root
+  ".*rc"                  # All RC files in root
 
   # Mixed content
   "assets/images/*.svg"   # SVG files only

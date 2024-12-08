@@ -109,6 +109,22 @@ items = {
 };
 ```
 
+### Q: How does Git integration work with sparse checkouts?
+A: Johnny-Mnemonix supports Git's sparse-checkout feature:
+```nix
+items = {
+  "11.01" = {
+    name = "Repository";
+    url = "https://github.com/user/repo.git";
+    sparse = [
+      "docs/**/*.md"    # Only markdown files in docs/
+      "src/core/**"     # Only core module files
+      "!tests/**"       # Exclude test files
+    ];
+  };
+};
+```
+
 ## Performance
 
 ### Q: Will this slow down my shell startup?
