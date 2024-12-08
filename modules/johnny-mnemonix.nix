@@ -12,7 +12,7 @@ with home-manager.lib; let
   xdgStateHome = cfg.xdg.stateHome or "${config.home.homeDirectory}/.local/state";
   xdgCacheHome = cfg.xdg.cacheHome or "${config.home.homeDirectory}/.cache";
   xdgConfigHome = cfg.xdg.configHome or "${config.home.homeDirectory}/.config";
-  xdgDataHome = cfg.xdg.dataHome or "${config.home.homeDirectory}/.local/share";
+  xdgDataHome = "${config.home.homeDirectory}/.local/share";
 
   # Directory locations
   stateDir = "${xdgStateHome}/johnny-mnemonix";
