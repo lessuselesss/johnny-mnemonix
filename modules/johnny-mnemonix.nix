@@ -4,8 +4,7 @@
   pkgs,
   ...
 }:
-with lib;
-with home-manager.lib; let
+with lib; let
   cfg = config.johnny-mnemonix;
 
   # XDG paths
