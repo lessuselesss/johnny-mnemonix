@@ -16,12 +16,16 @@ _: {
           "11" = {
             name = "Projects";
             items = {
-              "11.01" = "Budget";
+              "11.01" = {
+                name = "Budget";
+              };
               "11.02" = {
+                name = "Project Repository";
                 url = "https://github.com/user/project";
                 ref = "main";
               };
               "11.03" = {
+                name = "Large Repository";
                 url = "https://github.com/user/large-repo";
                 ref = "develop";
                 sparse = [
