@@ -23,7 +23,13 @@
         });
   in {
     # Define the module
-    homeManagerModules.default = import ./modules/johnny-mnemonix.nix;
+    homeManagerModules = {
+      default = import ./modules/johnny-mnemonix.nix;
+      johnny-mnemonix = import ./modules/johnny-mnemonix.nix;
+    };
+
+    # For backwards compatibility
+    homeManagerModule = self.homeManagerModules.default;
 
     # Simple test that evaluates the module
     checks = forAllSystems ({
