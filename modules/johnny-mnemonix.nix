@@ -225,6 +225,7 @@ in {
 
   config = mkIf cfg.enable {
     home.activation.createJohnnyMnemonixDirs = lib.hm.dag.entryAfter ["writeBoundary"] ''
+      export PATH="${pkgs.git}/bin:$PATH"
       ${mkAreaDirs cfg.areas}
     '';
   };
