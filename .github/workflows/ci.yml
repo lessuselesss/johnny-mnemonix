@@ -34,13 +34,20 @@ jobs:
   # Check flake health
   check-flake:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
     steps:
       - uses: actions/checkout@v4
       - uses: DeterminateSystems/nix-installer-action@main
       - uses: DeterminateSystems/magic-nix-cache-action@main
+      - name: Setup Nix profiles directory
+        run: |
+          sudo mkdir -p /nix/var/nix/profiles
+          sudo chown -R $(id -u):$(id -g) /nix/var/nix/profiles
       - uses: DeterminateSystems/flake-checker-action@main
         with:
-          fail-mode: true # Make CI fail if there are issues
+          fail-mode: true
 
   # Keep dependencies up to date
   # ... existing code ...
@@ -87,6 +94,9 @@ jobs:
   # Additional checks for specific platforms
   platform-checks:
     needs: [DeterminateCI]
+    permissions:
+      contents: read
+      id-token: write
     strategy:
       matrix:
         os: [ubuntu-latest, macos-latest]
@@ -100,6 +110,10 @@ jobs:
       - uses: actions/checkout@v4
       - uses: DeterminateSystems/nix-installer-action@main
       - uses: DeterminateSystems/magic-nix-cache-action@main
+      - name: Setup Nix profiles directory
+        run: |
+          sudo mkdir -p /nix/var/nix/profiles
+          sudo chown -R $(id -u):$(id -g) /nix/var/nix/profiles
 
       # Run system-specific checks
       - name: Check ${{ matrix.system }}
