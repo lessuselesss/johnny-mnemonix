@@ -44,6 +44,45 @@ with lib; let
         name = sanitizeName itemConfig.name;
         newPath = mkSafePath categoryPath itemId cfg.spacer name;
 
+        # Define commands for git operations
+        gitCloneCmd =
+          if itemConfig ? url && itemConfig.url != null
+          then ''
+            if [ ! -d "'${newPath}'" ]; then
+              if [ -e "'${newPath}'" ]; then
+                mv "'${newPath}'" "'${newPath}.bak-$(date +%Y%m%d-%H%M%S)'"
+              fi
+              GIT_SSH_COMMAND="ssh -o 'AddKeysToAgent yes'" git clone ${
+              if itemConfig ? ref && itemConfig.ref != null
+              then "-b '${itemConfig.ref}'"
+              else ""
+            } '${itemConfig.url}' '${newPath}'
+            else
+              cd '${newPath}'
+              GIT_SSH_COMMAND="ssh -o 'AddKeysToAgent yes'" git fetch
+              git checkout ${
+              if itemConfig ? ref && itemConfig.ref != null
+              then "'${itemConfig.ref}'"
+              else "main"
+            }
+              GIT_SSH_COMMAND="ssh -o 'AddKeysToAgent yes'" git pull
+            fi
+          ''
+          else "";
+
+        sparseCheckoutCmd =
+          if (itemConfig ? url && itemConfig.url != null && itemConfig ? sparse && itemConfig.sparse != [])
+          then ''
+            if [ -d "'${newPath}/.git'" ]; then
+              cd '${newPath}'
+              git config core.sparseCheckout true
+              mkdir -p .git/info
+              printf "%s\n" ${builtins.concatStringsSep " " (map (pattern: "'${pattern}'") itemConfig.sparse)} > .git/info/sparse-checkout
+              git read-tree -mu HEAD
+            fi
+          ''
+          else "";
+
         # Define symlink command if target is specified
         symlinkCmd =
           if itemConfig ? target && itemConfig.target != null
