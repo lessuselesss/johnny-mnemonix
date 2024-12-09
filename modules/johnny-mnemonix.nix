@@ -106,7 +106,7 @@ with lib; let
           SYMLINK_CMD="${symlinkCmd}"
           if [ -n "$SYMLINK_CMD" ]; then
             echo "Executing symlink command"
-            $SYMLINK_CMD
+            eval "$SYMLINK_CMD"
             return
           fi
 
@@ -124,11 +124,11 @@ with lib; let
           GIT_CMD="${gitCloneCmd}"
           if [ -n "$GIT_CMD" ]; then
             echo "Executing git commands"
-            $GIT_CMD
+            eval "$GIT_CMD"
             SPARSE_CMD="${sparseCheckoutCmd}"
             if [ -n "$SPARSE_CMD" ]; then
               echo "Executing sparse checkout"
-              $SPARSE_CMD
+              eval "$SPARSE_CMD"
             fi
           fi
         }
