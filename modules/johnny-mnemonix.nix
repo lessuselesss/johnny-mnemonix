@@ -253,7 +253,31 @@ in {
 
   config = mkIf cfg.enable {
     home.activation.createJohnnyMnemonixDirs = lib.hm.dag.entryAfter ["writeBoundary"] ''
-      export PATH="${pkgs.git}/bin:$PATH"
+      # Ensure required utilities are in PATH
+      export PATH="${lib.makeBinPath [
+        pkgs.git
+        pkgs.openssh
+        pkgs.coreutils # For basic commands like mkdir, mv, date
+        pkgs.gnused # For sed operations
+        pkgs.findutils # For find operations
+      ]}:$PATH"
+
+      # Create XDG directories if they don't exist
+      mkdir -p "${stateDir}"
+      mkdir -p "${cacheDir}"
+      mkdir -p "${configDir}"
+
+      # Ensure proper permissions
+      chmod 700 "${stateDir}"
+      chmod 700 "${cacheDir}"
+      chmod 700 "${configDir}"
+
+      # Initialize state file if it doesn't exist
+      if [ ! -f "${stateFile}" ]; then
+        echo '{}' > "${stateFile}"
+      fi
+
+      # Run directory creation
       ${mkAreaDirs cfg.areas}
     '';
   };
