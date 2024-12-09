@@ -139,6 +139,11 @@ with lib; let
   # Enhanced directory handling
   mkAreaDirs = areas: let
     mkCategoryDirs = areaId: areaConfig: categoryId: categoryConfig: let
+      # Define the area path
+      areaPath = "${cfg.baseDir}/${areaId}${cfg.spacer}${areaConfig.name}";
+      # Define the category path
+      categoryPath = "${areaPath}/${categoryId}${cfg.spacer}${categoryConfig.name}";
+
       # First, define the item handling function
       mkItemDir = itemId: itemDef: let
         # Convert simple string definitions to attribute set
