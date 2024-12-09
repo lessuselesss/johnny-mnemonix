@@ -95,19 +95,17 @@ with lib; let
           ''
           else "";
       in ''
-        handle_path() {
+        {
           # Check for symlink command
           if [ -n "${symlinkCmd}" ]; then
             ${symlinkCmd}
-            return
+            exit
           fi
 
           # Create directory if needed
-          if [ ! -e "${newPath}" ]; then
-            if [ -z "${gitCloneCmd}" ]; then
-              mkdir -p "${newPath}"
-              return
-            fi
+          if [ ! -e "${newPath}" ] && [ -z "${gitCloneCmd}" ]; then
+            mkdir -p "${newPath}"
+            exit
           fi
 
           # Handle git repository
@@ -118,8 +116,6 @@ with lib; let
             fi
           fi
         }
-
-        handle_path
       '';
 
       categoryItems = categoryConfig.items or {};
