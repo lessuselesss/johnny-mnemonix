@@ -103,14 +103,15 @@ with lib; let
       (itemId: mkItemDir itemId categoryItems.${itemId})
       (attrNames categoryItems);
 
-    areaCategories = areaConfig.categories or {};
-  in
-    concatMapStrings
-    (areaId:
+    mkArea = areaId: let
+      areaConfig = areas.${areaId};
+      areaCategories = areaConfig.categories or {};
+    in
       concatMapStrings
-      (categoryId: mkCategoryDirs areaId areas.${areaId} categoryId areaCategories.${categoryId})
-      (attrNames areaCategories))
-    (attrNames areas);
+      (categoryId: mkCategoryDirs areaId areaConfig categoryId areaCategories.${categoryId})
+      (attrNames areaCategories);
+  in
+    concatMapStrings mkArea (attrNames areas);
 
   # XDG paths
   xdgStateHome = cfg.xdg.stateHome or "${config.home.homeDirectory}/.local/state";
