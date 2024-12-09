@@ -97,15 +97,20 @@ with lib; let
         handle_path
       '';
 
-      mkCategoryDir = categoryId: categoryConfig:
-        concatMapStrings (itemId: mkItemDir itemId categoryConfig.items.${itemId}) (attrNames categoryConfig.items);
+      categoryItems = categoryConfig.items or {};
     in
-      concatMapStrings (categoryId: mkCategoryDir categoryId areaConfig.categories.${categoryId}) (attrNames areaConfig.categories);
+      concatMapStrings
+      (itemId: mkItemDir itemId categoryItems.${itemId})
+      (attrNames categoryItems);
 
-    mkAreaDir = areaId: areaConfig:
-      mkCategoryDirs areaId areaConfig;
+    areaCategories = areaConfig.categories or {};
   in
-    concatMapStrings (areaId: mkAreaDir areaId areas.${areaId}) (attrNames areas);
+    concatMapStrings
+    (areaId:
+      concatMapStrings
+      (categoryId: mkCategoryDirs areaId areas.${areaId} categoryId areaCategories.${categoryId})
+      (attrNames areaCategories))
+    (attrNames areas);
 
   # XDG paths
   xdgStateHome = cfg.xdg.stateHome or "${config.home.homeDirectory}/.local/state";
