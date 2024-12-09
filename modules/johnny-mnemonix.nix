@@ -198,6 +198,26 @@ with lib; let
         # Construct path with name included
         newPath = "${categoryPath}/${itemId}${cfg.spacer}${name}";
 
+        # Define git commands based on item configuration
+        gitCloneCmd =
+          if itemConfig ? url && itemConfig.url != null
+          then ''
+            git clone ${
+              if itemConfig ? ref && itemConfig.ref != null
+              then "-b ${itemConfig.ref}"
+              else ""
+            } ${itemConfig.url} "${newPath}"
+          ''
+          else "";
+
+        sparseCheckoutCmd =
+          if (itemConfig ? url && itemConfig.url != null && itemConfig ? sparse && itemConfig.sparse != [])
+          then ''
+            cd "${newPath}"
+            git sparse-checkout set ${concatStringsSep " " itemConfig.sparse}
+          ''
+          else "";
+
         # Debug final path
         _______ = debugValue "newPath" newPath;
       in ''
