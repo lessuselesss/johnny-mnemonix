@@ -146,7 +146,7 @@ with lib; let
         symlinkCmd =
           if itemConfig ? target && itemConfig.target != null
           then ''
-            if [ -e "${newPath}" ] && [ ! -L "${newPath}" ]; then
+            if test -e "${newPath}" && test ! -L "${newPath}"; then
               # Backup existing directory if it's not a symlink
               mv "${newPath}" "${newPath}.bak-$(date +%Y%m%d-%H%M%S)"
             fi
@@ -164,9 +164,9 @@ with lib; let
         gitCloneCmd =
           if itemConfig ? url && itemConfig.url != null
           then ''
-            if [ ! -d "${newPath}/.git" ]; then
+            if test ! -d "${newPath}/.git"; then
               # If directory exists but isn't a git repo, move it
-              if [ -d "${newPath}" ]; then
+              if test -d "${newPath}"; then
                 mv "${newPath}" "${newPath}.bak-$(date +%Y%m%d-%H%M%S)"
               fi
               # Clone with SSH agent forwarding
@@ -192,7 +192,7 @@ with lib; let
         sparseCheckoutCmd =
           if (itemConfig ? url && itemConfig.url != null && itemConfig ? sparse && itemConfig.sparse != [])
           then ''
-            if [ -d "${newPath}/.git" ]; then
+            if test -d "${newPath}/.git"; then
               cd "${newPath}"
               git config core.sparseCheckout true
               mkdir -p .git/info
@@ -206,18 +206,22 @@ with lib; let
         _______ = debugValue "newPath" newPath;
       in ''
         # Handle symlinks first
-        ${symlinkCmd}
+        if test -n "${symlinkCmd}"; then
+          ${symlinkCmd}
+        fi
 
         # Only proceed with regular directory/git operations if not a symlink
-        if [ -z "${symlinkCmd}" ]; then
+        if test -z "${symlinkCmd}"; then
           # For non-git directories, create them if they don't exist
-          if [ ! -e "${newPath}" ] && [ -z "${gitCloneCmd}" ]; then
+          if test ! -e "${newPath}" && test -z "${gitCloneCmd}"; then
             mkdir -p "${newPath}"
           fi
 
           # Execute git commands if specified
-          ${gitCloneCmd}
-          ${sparseCheckoutCmd}
+          if test -n "${gitCloneCmd}"; then
+            ${gitCloneCmd}
+            ${sparseCheckoutCmd}
+          fi
         fi
       '';
     in
@@ -290,7 +294,7 @@ in {
       ]}:$PATH"
 
       # Start SSH agent if not running
-      if [ -z "$SSH_AUTH_SOCK" ]; then
+      if test -z "$SSH_AUTH_SOCK"; then
         eval $(ssh-agent -s)
         trap "ssh-agent -k" EXIT
       fi
@@ -306,7 +310,7 @@ in {
       chmod 700 "${configDir}"
 
       # Initialize state file if it doesn't exist
-      if [ ! -f "${stateFile}" ]; then
+      if test ! -f "${stateFile}"; then
         echo '{}' > "${stateFile}"
       fi
 
