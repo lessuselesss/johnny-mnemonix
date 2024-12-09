@@ -151,7 +151,8 @@ with lib; let
               if [ -d "${newPath}" ]; then
                 mv "${newPath}" "${newPath}.bak-$(date +%Y%m%d-%H%M%S)"
               fi
-              git clone ${
+              # Clone with SSH agent forwarding
+              GIT_SSH_COMMAND="ssh -o 'AddKeysToAgent yes'" git clone ${
               if itemConfig ? ref && itemConfig.ref != null
               then "-b ${itemConfig.ref}"
               else ""
@@ -159,13 +160,13 @@ with lib; let
             else
               # If it's already a git repo, just update it
               cd "${newPath}"
-              git fetch
+              GIT_SSH_COMMAND="ssh -o 'AddKeysToAgent yes'" git fetch
               git checkout ${
               if itemConfig ? ref && itemConfig.ref != null
               then itemConfig.ref
               else "main"
             }
-              git pull
+              GIT_SSH_COMMAND="ssh -o 'AddKeysToAgent yes'" git pull
             fi
           ''
           else "";
@@ -175,8 +176,10 @@ with lib; let
           then ''
             if [ -d "${newPath}/.git" ]; then
               cd "${newPath}"
-              git sparse-checkout init
-              git sparse-checkout set ${concatStringsSep " " itemConfig.sparse}
+              git config core.sparseCheckout true
+              mkdir -p .git/info
+              printf "%s\n" ${builtins.concatStringsSep " " (map (pattern: "\"${pattern}\"") itemConfig.sparse)} > .git/info/sparse-checkout
+              git read-tree -mu HEAD
             fi
           ''
           else "";
@@ -257,10 +260,16 @@ in {
       export PATH="${lib.makeBinPath [
         pkgs.git
         pkgs.openssh
-        pkgs.coreutils # For basic commands like mkdir, mv, date
-        pkgs.gnused # For sed operations
-        pkgs.findutils # For find operations
+        pkgs.coreutils
+        pkgs.gnused
+        pkgs.findutils
       ]}:$PATH"
+
+      # Start SSH agent if not running
+      if [ -z "$SSH_AUTH_SOCK" ]; then
+        eval $(ssh-agent -s)
+        trap "ssh-agent -k" EXIT
+      fi
 
       # Create XDG directories if they don't exist
       mkdir -p "${stateDir}"
@@ -277,7 +286,7 @@ in {
         echo '{}' > "${stateFile}"
       fi
 
-      # Run directory creation
+      # Run directory creation with SSH agent maintained
       ${mkAreaDirs cfg.areas}
     '';
   };
