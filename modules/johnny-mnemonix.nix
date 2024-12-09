@@ -95,14 +95,21 @@ with lib; let
           ''
           else "";
       in ''
-        # Handle symlinks first
-        if [ -n "${symlinkCmd}" ]; then
+        if [ -n "${symlinkCmd}" ]
+        then
           ${symlinkCmd}
-        elif [ ! -e "${newPath}" ] && [ -z "${gitCloneCmd}" ]; then
+        fi
+
+        if [ ! -e "${newPath}" ] && [ -z "${gitCloneCmd}" ]
+        then
           mkdir -p "${newPath}"
-        elif [ -n "${gitCloneCmd}" ]; then
+        fi
+
+        if [ -n "${gitCloneCmd}" ]
+        then
           ${gitCloneCmd}
-          if [ -n "${sparseCheckoutCmd}" ]; then
+          if [ -n "${sparseCheckoutCmd}" ]
+          then
             ${sparseCheckoutCmd}
           fi
         fi
