@@ -310,7 +310,7 @@ Contributions are welcome! Please see [CONTRIBUTING.md](./CONTRIBUTING.md) for g
 
 Before submitting a PR:
 1. Enter the development environment: `nix develop`
-2. Ensure all pre-commit hooks pass: `pre-commit run --all-files`
+2. Ensure all pre-commit hooks pass: *`pre-commit run --all-files`*
 3. Verify CI checks pass locally: `nix flake check`
 
 ## License

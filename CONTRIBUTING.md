@@ -119,4 +119,4 @@ Types:
 - Join community discussions
 - Read existing documentation
 
-Thank you for contributing to Johnny-Mnemonix! 
+Thank you for contributing to Johnny-Mnemonix!
