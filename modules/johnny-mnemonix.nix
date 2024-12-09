@@ -139,66 +139,68 @@ with lib; let
 
   # Enhanced directory handling
   mkAreaDirs = areas: let
+    # Debug function
+    debugValue = name: value:
+      builtins.trace "Debug: ${name} = ${
+        if value == null
+        then "null"
+        else if builtins.isString value
+        then value
+        else builtins.toJSON value
+      }"
+      value;
+
     mkCategoryDirs = areaId: areaConfig: categoryId: categoryConfig: let
-      # Add debug logging
-      debugLog = name: value: ''
-        echo "Debug: ${name} = ''${value:-null}"
-      '';
+      # Debug area and category config
+      _ = debugValue "areaId" areaId;
+      __ = debugValue "areaConfig" areaConfig;
+      ___ = debugValue "categoryId" categoryId;
+      ____ = debugValue "categoryConfig" categoryConfig;
 
-      # Define the area path with checks
+      # Define the area path with validation
       areaPath =
-        if areaConfig ? name && areaConfig.name != null
-        then "${cfg.baseDir}/${areaId}${cfg.spacer}${areaConfig.name}"
-        else throw "Area ${areaId} is missing a name";
+        if !(areaConfig ? name)
+        then throw "Area ${areaId} is missing name attribute"
+        else if areaConfig.name == null
+        then throw "Area ${areaId} has null name"
+        else "${cfg.baseDir}/${areaId}${cfg.spacer}${areaConfig.name}";
 
-      # Define the category path with checks
+      # Define the category path with validation
       categoryPath =
-        if categoryConfig ? name && categoryConfig.name != null
-        then "${areaPath}/${categoryId}${cfg.spacer}${categoryConfig.name}"
-        else throw "Category ${categoryId} in area ${areaId} is missing a name";
+        if !(categoryConfig ? name)
+        then throw "Category ${categoryId} in area ${areaId} is missing name attribute"
+        else if categoryConfig.name == null
+        then throw "Category ${categoryId} in area ${areaId} has null name"
+        else "${areaPath}/${categoryId}${cfg.spacer}${categoryConfig.name}";
 
       # First, define the item handling function
       mkItemDir = itemId: itemDef: let
-        # Convert simple string definitions to attribute set
+        # Debug item config
+        _____ = debugValue "itemId" itemId;
+        ______ = debugValue "itemDef" itemDef;
+
+        # Convert simple string definitions to attribute set with validation
         itemConfig =
-          if isString itemDef
-          then {name = itemDef;}
-          else if itemDef == null
+          if itemDef == null
           then throw "Item ${itemId} in category ${categoryId} (area ${areaId}) is null"
+          else if isString itemDef
+          then {name = itemDef;}
           else itemDef;
 
-        # Ensure we have a valid name
+        # Validate item name
         name =
-          if itemConfig ? name && itemConfig.name != null
-          then itemConfig.name
-          else throw "Item ${itemId} in category ${categoryId} (area ${areaId}) is missing a name";
+          if !(itemConfig ? name)
+          then throw "Item ${itemId} in category ${categoryId} (area ${areaId}) is missing name attribute"
+          else if itemConfig.name == null
+          then throw "Item ${itemId} in category ${categoryId} (area ${areaId}) has null name"
+          else itemConfig.name;
 
         # Construct path with name included
         newPath = "${categoryPath}/${itemId}${cfg.spacer}${name}";
 
-        # Separate git commands for clarity
-        gitCloneCmd =
-          if itemConfig ? url
-          then ''
-            ${gitWithSsh}/bin/git-with-ssh clone ${
-              optionalString (itemConfig ? ref) "-b ${itemConfig.ref}"
-            } ${itemConfig.url} "${newPath}"
-          ''
-          else "";
-
-        sparseCheckoutCmd =
-          if (itemConfig ? url && itemConfig ? sparse && itemConfig.sparse != [])
-          then ''
-            cd "${newPath}"
-            ${gitWithSsh}/bin/git-with-ssh sparse-checkout set ${concatStringsSep " " itemConfig.sparse}
-          ''
-          else "";
+        # Debug final path
+        _______ = debugValue "newPath" newPath;
       in ''
-        # Debug logging
-        ${debugLog "areaPath" areaPath}
-        ${debugLog "categoryPath" categoryPath}
-        ${debugLog "itemPath" newPath}
-
         if [ ! -e "${newPath}" ]; then
           mkdir -p "${newPath}"
           ${gitCloneCmd}
