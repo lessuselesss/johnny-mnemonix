@@ -147,7 +147,7 @@ with lib; let
           if itemConfig ? target && itemConfig.target != null
           then ''
             # Handle existing path
-            if test -e "${newPath}" && test ! -L "${newPath}"; then
+            if [[ -e "${newPath}" ]] && [[ ! -L "${newPath}" ]]; then
               mv "${newPath}" "${newPath}.bak-$(date +%Y%m%d-%H%M%S)"
             fi
             mkdir -p "$(dirname "${newPath}")"
@@ -204,19 +204,19 @@ with lib; let
         _______ = debugValue "newPath" newPath;
       in ''
         handle_path() {
-          if test "x${symlinkCmd}" != "x"; then
+          if [[ -n "${symlinkCmd}" ]]; then
             ${symlinkCmd}
             return
           fi
 
-          if test ! -e "${newPath}" && test "x${gitCloneCmd}" = "x"; then
+          if [[ ! -e "${newPath}" ]] && [[ -z "${gitCloneCmd}" ]]; then
             mkdir -p "${newPath}"
             return
           fi
 
-          if test "x${gitCloneCmd}" != "x"; then
+          if [[ -n "${gitCloneCmd}" ]]; then
             ${gitCloneCmd}
-            test "x${sparseCheckoutCmd}" != "x" && ${sparseCheckoutCmd}
+            [[ -n "${sparseCheckoutCmd}" ]] && ${sparseCheckoutCmd}
             return
           fi
         }
