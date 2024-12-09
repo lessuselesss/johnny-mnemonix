@@ -74,8 +74,8 @@
         buildInputs = with pkgs; [
           git
           nixpkgs-fmt
-          statix # Add statix
-          deadnix # Add deadnix
+          statix
+          deadnix
           pre-commit
         ];
         shellHook = ''
