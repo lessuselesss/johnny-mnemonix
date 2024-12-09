@@ -204,19 +204,19 @@ with lib; let
         _______ = debugValue "newPath" newPath;
       in ''
         handle_path() {
-          if test -n "${symlinkCmd}"; then
+          if test "x${symlinkCmd}" != "x"; then
             ${symlinkCmd}
             return
           fi
 
-          if test ! -e "${newPath}" && test -z "${gitCloneCmd}"; then
+          if test ! -e "${newPath}" && test "x${gitCloneCmd}" = "x"; then
             mkdir -p "${newPath}"
             return
           fi
 
-          if test -n "${gitCloneCmd}"; then
+          if test "x${gitCloneCmd}" != "x"; then
             ${gitCloneCmd}
-            test -n "${sparseCheckoutCmd}" && ${sparseCheckoutCmd}
+            test "x${sparseCheckoutCmd}" != "x" && ${sparseCheckoutCmd}
             return
           fi
         }
