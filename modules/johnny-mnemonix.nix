@@ -203,17 +203,25 @@ with lib; let
         # Debug final path
         _______ = debugValue "newPath" newPath;
       in ''
-        if test -n "${symlinkCmd}"; then
-          # Handle symlink
-          ${symlinkCmd}
-        elif test ! -e "${newPath}" && test -z "${gitCloneCmd}"; then
-          # Create regular directory
-          mkdir -p "${newPath}"
-        elif test -n "${gitCloneCmd}"; then
-          # Handle git repository
-          ${gitCloneCmd}
-          test -n "${sparseCheckoutCmd}" && ${sparseCheckoutCmd}
-        fi
+        handle_path() {
+          if test -n "${symlinkCmd}"; then
+            ${symlinkCmd}
+            return
+          fi
+
+          if test ! -e "${newPath}" && test -z "${gitCloneCmd}"; then
+            mkdir -p "${newPath}"
+            return
+          fi
+
+          if test -n "${gitCloneCmd}"; then
+            ${gitCloneCmd}
+            test -n "${sparseCheckoutCmd}" && ${sparseCheckoutCmd}
+            return
+          fi
+        }
+
+        handle_path
       '';
     in
       concatMapStrings (itemId: mkItemDir itemId categoryConfig.items.${itemId})
