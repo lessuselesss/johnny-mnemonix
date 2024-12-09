@@ -48,21 +48,21 @@ with lib; let
         gitCloneCmd =
           if itemConfig ? url && itemConfig.url != null
           then ''
-            if [ ! -d "'${newPath}'" ]; then
-              if [ -e "'${newPath}'" ]; then
-                mv "'${newPath}'" "'${newPath}.bak-$(date +%Y%m%d-%H%M%S)'"
+            if [ ! -d "${newPath}" ]; then
+              if [ -e "${newPath}" ]; then
+                mv "${newPath}" "${newPath}.bak-$(date +%Y%m%d-%H%M%S)"
               fi
               GIT_SSH_COMMAND="ssh -o 'AddKeysToAgent yes'" git clone ${
               if itemConfig ? ref && itemConfig.ref != null
-              then "-b '${itemConfig.ref}'"
+              then "-b ${itemConfig.ref}"
               else ""
-            } '${itemConfig.url}' '${newPath}'
+            } ${itemConfig.url} "${newPath}"
             else
-              cd '${newPath}'
+              cd "${newPath}"
               GIT_SSH_COMMAND="ssh -o 'AddKeysToAgent yes'" git fetch
               git checkout ${
               if itemConfig ? ref && itemConfig.ref != null
-              then "'${itemConfig.ref}'"
+              then "${itemConfig.ref}"
               else "main"
             }
               GIT_SSH_COMMAND="ssh -o 'AddKeysToAgent yes'" git pull
@@ -73,11 +73,11 @@ with lib; let
         sparseCheckoutCmd =
           if (itemConfig ? url && itemConfig.url != null && itemConfig ? sparse && itemConfig.sparse != [])
           then ''
-            if [ -d "'${newPath}/.git'" ]; then
-              cd '${newPath}'
+            if [ -d "${newPath}/.git" ]; then
+              cd "${newPath}"
               git config core.sparseCheckout true
               mkdir -p .git/info
-              printf "%s\n" ${builtins.concatStringsSep " " (map (pattern: "'${pattern}'") itemConfig.sparse)} > .git/info/sparse-checkout
+              printf "%s\n" ${builtins.concatStringsSep " " (map (pattern: "${pattern}") itemConfig.sparse)} > .git/info/sparse-checkout
               git read-tree -mu HEAD
             fi
           ''
@@ -87,48 +87,34 @@ with lib; let
         symlinkCmd =
           if itemConfig ? target && itemConfig.target != null
           then ''
-            echo "Handling symlink for '${newPath}'"
-            if [ -e "'${newPath}'" ] && [ ! -L "'${newPath}'" ]; then
-              echo "Backing up existing directory"
-              mv "'${newPath}'" "'${newPath}.bak-$(date +%Y%m%d-%H%M%S)'"
+            if [ -e "${newPath}" ] && [ ! -L "${newPath}" ]; then
+              mv "${newPath}" "${newPath}.bak-$(date +%Y%m%d-%H%M%S)"
             fi
-            echo "Creating parent directory"
-            mkdir -p "$(dirname "'${newPath}'")"
-            echo "Creating symlink"
-            ln -sfn "'${itemConfig.target}'" "'${newPath}'"
+            mkdir -p "$(dirname "${newPath}")"
+            ln -sfn "${itemConfig.target}" "${newPath}"
           ''
           else "";
       in ''
         handle_path() {
-          echo "Processing path: '${newPath}'"
-
           # Check for symlink command
-          SYMLINK_CMD="${symlinkCmd}"
-          if [ -n "$SYMLINK_CMD" ]; then
-            echo "Executing symlink command"
-            eval "$SYMLINK_CMD"
+          if [ -n "${symlinkCmd}" ]; then
+            ${symlinkCmd}
             return
           fi
 
           # Create directory if needed
-          if [ ! -e "'${newPath}'" ]; then
-            GIT_CMD="${gitCloneCmd}"
-            if [ -z "$GIT_CMD" ]; then
-              echo "Creating directory"
-              mkdir -p "'${newPath}'"
+          if [ ! -e "${newPath}" ]; then
+            if [ -z "${gitCloneCmd}" ]; then
+              mkdir -p "${newPath}"
               return
             fi
           fi
 
           # Handle git repository
-          GIT_CMD="${gitCloneCmd}"
-          if [ -n "$GIT_CMD" ]; then
-            echo "Executing git commands"
-            eval "$GIT_CMD"
-            SPARSE_CMD="${sparseCheckoutCmd}"
-            if [ -n "$SPARSE_CMD" ]; then
-              echo "Executing sparse checkout"
-              eval "$SPARSE_CMD"
+          if [ -n "${gitCloneCmd}" ]; then
+            ${gitCloneCmd}
+            if [ -n "${sparseCheckoutCmd}" ]; then
+              ${sparseCheckoutCmd}
             fi
           fi
         }
