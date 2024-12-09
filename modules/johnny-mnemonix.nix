@@ -149,11 +149,11 @@ with lib; let
         # Convert simple string definitions to attribute set
         itemConfig =
           if isString itemDef
-          then {title = itemDef;}
+          then {name = itemDef;}
           else itemDef;
 
         # Construct path with name included
-        newPath = "${categoryPath}/${itemId}${cfg.spacer}${itemConfig.title or itemId}";
+        newPath = "${categoryPath}/${itemId}${cfg.spacer}${itemConfig.name}";
 
         # Separate git commands for clarity
         gitCloneCmd =
