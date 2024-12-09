@@ -142,6 +142,24 @@ with lib; let
         # Construct path with name included
         newPath = "${categoryPath}/${itemId}${cfg.spacer}${name}";
 
+        # Define symlink command if target is specified
+        symlinkCmd =
+          if itemConfig ? target && itemConfig.target != null
+          then ''
+            if [ -e "${newPath}" ] && [ ! -L "${newPath}" ]; then
+              # Backup existing directory if it's not a symlink
+              mv "${newPath}" "${newPath}.bak-$(date +%Y%m%d-%H%M%S)"
+            fi
+            # Create parent directory if needed
+            mkdir -p "$(dirname "${newPath}")"
+            # Create or update symlink
+            ln -sfn "${itemConfig.target}" "${newPath}"
+          ''
+          else "";
+
+        # Debug symlink info
+        ________ = debugValue "target" (itemConfig.target or null);
+
         # Define git commands based on item configuration
         gitCloneCmd =
           if itemConfig ? url && itemConfig.url != null
@@ -187,14 +205,20 @@ with lib; let
         # Debug final path
         _______ = debugValue "newPath" newPath;
       in ''
-        # For non-git directories, create them if they don't exist
-        if [ ! -e "${newPath}" ] && [ -z "${gitCloneCmd}" ]; then
-          mkdir -p "${newPath}"
-        fi
+        # Handle symlinks first
+        ${symlinkCmd}
 
-        # Execute git commands if specified
-        ${gitCloneCmd}
-        ${sparseCheckoutCmd}
+        # Only proceed with regular directory/git operations if not a symlink
+        if [ -z "${symlinkCmd}" ]; then
+          # For non-git directories, create them if they don't exist
+          if [ ! -e "${newPath}" ] && [ -z "${gitCloneCmd}" ]; then
+            mkdir -p "${newPath}"
+          fi
+
+          # Execute git commands if specified
+          ${gitCloneCmd}
+          ${sparseCheckoutCmd}
+        fi
       '';
     in
       concatMapStrings (itemId: mkItemDir itemId categoryConfig.items.${itemId})
@@ -210,7 +234,7 @@ with lib; let
     mkdir -p "${cfg.baseDir}"
 
     # Create area directories
-    ${concatMapStrings (areaId: mkAreaDir areaId areas.${areaId}) (attrNames areas)}
+    ${concatMapStrings (areaId: mkAreaDir areaId cfg.areas.${areaId}) (attrNames cfg.areas)}
   '';
 in {
   options.johnny-mnemonix = {
