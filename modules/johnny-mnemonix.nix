@@ -56,6 +56,7 @@ with lib; let
       name = mkOption {
         type = types.str;
         description = "Directory name for the item";
+        example = "My Directory";
       };
       url = mkOption {
         type = types.nullOr types.str;
@@ -139,10 +140,22 @@ with lib; let
   # Enhanced directory handling
   mkAreaDirs = areas: let
     mkCategoryDirs = areaId: areaConfig: categoryId: categoryConfig: let
-      # Define the area path
-      areaPath = "${cfg.baseDir}/${areaId}${cfg.spacer}${areaConfig.name}";
-      # Define the category path
-      categoryPath = "${areaPath}/${categoryId}${cfg.spacer}${categoryConfig.name}";
+      # Add debug logging
+      debugLog = name: value: ''
+        echo "Debug: ${name} = ''${value:-null}"
+      '';
+
+      # Define the area path with checks
+      areaPath =
+        if areaConfig ? name && areaConfig.name != null
+        then "${cfg.baseDir}/${areaId}${cfg.spacer}${areaConfig.name}"
+        else throw "Area ${areaId} is missing a name";
+
+      # Define the category path with checks
+      categoryPath =
+        if categoryConfig ? name && categoryConfig.name != null
+        then "${areaPath}/${categoryId}${cfg.spacer}${categoryConfig.name}"
+        else throw "Category ${categoryId} in area ${areaId} is missing a name";
 
       # First, define the item handling function
       mkItemDir = itemId: itemDef: let
@@ -150,10 +163,18 @@ with lib; let
         itemConfig =
           if isString itemDef
           then {name = itemDef;}
+          else if itemDef == null
+          then throw "Item ${itemId} in category ${categoryId} (area ${areaId}) is null"
           else itemDef;
 
+        # Ensure we have a valid name
+        name =
+          if itemConfig ? name && itemConfig.name != null
+          then itemConfig.name
+          else throw "Item ${itemId} in category ${categoryId} (area ${areaId}) is missing a name";
+
         # Construct path with name included
-        newPath = "${categoryPath}/${itemId}${cfg.spacer}${itemConfig.name}";
+        newPath = "${categoryPath}/${itemId}${cfg.spacer}${name}";
 
         # Separate git commands for clarity
         gitCloneCmd =
@@ -173,6 +194,11 @@ with lib; let
           ''
           else "";
       in ''
+        # Debug logging
+        ${debugLog "areaPath" areaPath}
+        ${debugLog "categoryPath" categoryPath}
+        ${debugLog "itemPath" newPath}
+
         if [ ! -e "${newPath}" ]; then
           mkdir -p "${newPath}"
           ${gitCloneCmd}
