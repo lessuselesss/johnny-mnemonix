@@ -146,13 +146,11 @@ with lib; let
         symlinkCmd =
           if itemConfig ? target && itemConfig.target != null
           then ''
+            # Handle existing path
             if test -e "${newPath}" && test ! -L "${newPath}"; then
-              # Backup existing directory if it's not a symlink
               mv "${newPath}" "${newPath}.bak-$(date +%Y%m%d-%H%M%S)"
             fi
-            # Create parent directory if needed
             mkdir -p "$(dirname "${newPath}")"
-            # Create or update symlink
             ln -sfn "${itemConfig.target}" "${newPath}"
           ''
           else "";
@@ -205,23 +203,16 @@ with lib; let
         # Debug final path
         _______ = debugValue "newPath" newPath;
       in ''
-        # Handle symlinks first
         if test -n "${symlinkCmd}"; then
+          # Handle symlink
           ${symlinkCmd}
-        fi
-
-        # Only proceed with regular directory/git operations if not a symlink
-        if test -z "${symlinkCmd}"; then
-          # For non-git directories, create them if they don't exist
-          if test ! -e "${newPath}" && test -z "${gitCloneCmd}"; then
-            mkdir -p "${newPath}"
-          fi
-
-          # Execute git commands if specified
-          if test -n "${gitCloneCmd}"; then
-            ${gitCloneCmd}
-            ${sparseCheckoutCmd}
-          fi
+        elif test ! -e "${newPath}" && test -z "${gitCloneCmd}"; then
+          # Create regular directory
+          mkdir -p "${newPath}"
+        elif test -n "${gitCloneCmd}"; then
+          # Handle git repository
+          ${gitCloneCmd}
+          test -n "${sparseCheckoutCmd}" && ${sparseCheckoutCmd}
         fi
       '';
     in
