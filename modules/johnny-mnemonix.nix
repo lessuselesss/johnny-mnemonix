@@ -140,44 +140,39 @@ with lib; let
   mkAreaDirs = areas: let
     mkCategoryDirs = areaId: areaConfig: categoryId: categoryConfig: let
       # First, define the item handling function
-      mkItemDir = itemId: itemConfig: let
-        newPath = "${cfg.baseDir}/${areaId}${cfg.spacer}${areaConfig.name}/${categoryId}${cfg.spacer}${categoryConfig.name}/${itemId}";
-        itemDef =
-          if isString itemConfig
-          then {
-            name = itemConfig;
-            url = null;
-          }
-          else itemConfig;
+      mkItemDir = itemId: itemDef: let
+        # Convert simple string definitions to attribute set
+        itemConfig =
+          if isString itemDef
+          then {title = itemDef;}
+          else itemDef;
+
+        # Construct path with name included
+        newPath = "${categoryPath}/${itemId}${cfg.spacer}${itemConfig.title or itemId}";
+
+        # Separate git commands for clarity
+        gitCloneCmd =
+          if itemConfig ? url
+          then ''
+            ${gitWithSsh}/bin/git-with-ssh clone ${
+              optionalString (itemConfig ? ref) "-b ${itemConfig.ref}"
+            } ${itemConfig.url} "${newPath}"
+          ''
+          else "";
+
+        sparseCheckoutCmd =
+          if (itemConfig ? url && itemConfig ? sparse && itemConfig.sparse != [])
+          then ''
+            cd "${newPath}"
+            ${gitWithSsh}/bin/git-with-ssh sparse-checkout set ${concatStringsSep " " itemConfig.sparse}
+          ''
+          else "";
       in ''
-        mkdir -p "${newPath}"
-
-        ${
-          if itemDef.url != null
-          then ''
-            if [ ! -d "${newPath}/.git" ]; then
-              ${gitWithSsh}/bin/git-with-ssh clone ${
-              if itemDef ? sparse && itemDef.sparse != []
-              then "--sparse"
-              else ""
-            } \
-                --branch ${itemDef.ref or "main"} \
-                ${itemDef.url} "${newPath}"
-
-              ${optionalString (itemDef ? sparse && itemDef.sparse != []) ''
-              cd "${newPath}"
-              ${gitWithSsh}/bin/git-with-ssh sparse-checkout set ${concatStringsSep " " itemDef.sparse}
-            ''}
-            fi
-          ''
-          else if itemDef ? target && itemDef.target != null
-          then ''
-            if [ ! -e "${newPath}" ]; then
-              ln -s "${itemDef.target}" "${newPath}"
-            fi
-          ''
-          else ""
-        }
+        if [ ! -e "${newPath}" ]; then
+          mkdir -p "${newPath}"
+          ${gitCloneCmd}
+          ${sparseCheckoutCmd}
+        fi
       '';
     in
       concatMapStrings (itemId: mkItemDir itemId categoryConfig.items.${itemId})
