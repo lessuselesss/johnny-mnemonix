@@ -95,27 +95,17 @@ with lib; let
           ''
           else "";
       in ''
-        {
-          # Check for symlink command
-          if [ -n "${symlinkCmd}" ]; then
-            ${symlinkCmd}
-            exit
+        # Handle symlinks first
+        if [ -n "${symlinkCmd}" ]; then
+          ${symlinkCmd}
+        elif [ ! -e "${newPath}" ] && [ -z "${gitCloneCmd}" ]; then
+          mkdir -p "${newPath}"
+        elif [ -n "${gitCloneCmd}" ]; then
+          ${gitCloneCmd}
+          if [ -n "${sparseCheckoutCmd}" ]; then
+            ${sparseCheckoutCmd}
           fi
-
-          # Create directory if needed
-          if [ ! -e "${newPath}" ] && [ -z "${gitCloneCmd}" ]; then
-            mkdir -p "${newPath}"
-            exit
-          fi
-
-          # Handle git repository
-          if [ -n "${gitCloneCmd}" ]; then
-            ${gitCloneCmd}
-            if [ -n "${sparseCheckoutCmd}" ]; then
-              ${sparseCheckoutCmd}
-            fi
-          fi
-        }
+        fi
       '';
 
       categoryItems = categoryConfig.items or {};
