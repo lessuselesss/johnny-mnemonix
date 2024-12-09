@@ -53,6 +53,34 @@ with lib; let
     };
   };
 
+  categoryOptionsType = types.submodule {
+    options = {
+      name = mkOption {
+        type = types.str;
+        description = "Name of the category";
+      };
+      items = mkOption {
+        type = types.attrsOf (types.either types.str itemOptionsType);
+        default = {};
+        description = "Items in this category";
+      };
+    };
+  };
+
+  areaOptionsType = types.submodule {
+    options = {
+      name = mkOption {
+        type = types.str;
+        description = "Name of the area";
+      };
+      categories = mkOption {
+        type = types.attrsOf categoryOptionsType;
+        default = {};
+        description = "Categories in this area";
+      };
+    };
+  };
+
   # Create directories based on configuration
   mkAreaDirs = areas: let
     # Debug function
