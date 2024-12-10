@@ -96,20 +96,18 @@ with lib; let
       concatMapStrings (itemId: mkItemDir itemId categoryConfig.items.${itemId})
       (attrNames categoryConfig.items);
 
-    mkArea = areaId: let
-      areaConfig = areas.${areaId};
-      areaCategories = areaConfig.categories or {};
-    in
-      concatMapStrings
-      (categoryId: mkCategoryDirs areaId areaConfig categoryId areaCategories.${categoryId})
-      (attrNames areaCategories);
+    mkAreaDir = areaId: areaConfig:
+      concatMapStrings (
+        categoryId:
+          mkCategoryDirs areaId areaConfig categoryId areaConfig.categories.${categoryId}
+      ) (attrNames areaConfig.categories);
   in ''
     set -e
     # Ensure base directory exists
     mkdir -p "${cfg.baseDir}"
 
     # Create area directories
-    ${concatMapStrings (areaId: mkArea areaId cfg.areas.${areaId}) (attrNames cfg.areas)}
+    ${concatMapStrings (areaId: mkAreaDir areaId cfg.areas.${areaId}) (attrNames cfg.areas)}
   '';
 
   # XDG paths
