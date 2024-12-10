@@ -29,7 +29,7 @@ with lib; let
     sanitizedName = sanitizeName name;
   in "${base}/${sanitizedId}${spacer}${sanitizedName}";
 
-  # Directory creation function
+  # Create directories based on configuration
   mkAreaDirs = areas: let
     mkCategoryDirs = areaId: areaConfig: categoryId: categoryConfig: let
       areaPath = mkSafePath cfg.baseDir areaId cfg.spacer areaConfig.name;
@@ -43,13 +43,13 @@ with lib; let
 
         name = sanitizeName itemConfig.name;
         newPath = mkSafePath categoryPath itemId cfg.spacer name;
-
-        # Define commands for git operations
-        gitCloneCmd =
+      in ''
+        # Create directory for ${itemId}
+        ${
           if itemConfig ? url && itemConfig.url != null
           then ''
-            if [ ! -d "${newPath}" ]; then
-              if [ -e "${newPath}" ]; then
+            if [ ! -d "${newPath}/.git" ]; then
+              if [ -d "${newPath}" ]; then
                 mv "${newPath}" "${newPath}.bak-$(date +%Y%m%d-%H%M%S)"
               fi
               GIT_SSH_COMMAND="ssh -o 'AddKeysToAgent yes'" git clone ${
@@ -62,30 +62,24 @@ with lib; let
               GIT_SSH_COMMAND="ssh -o 'AddKeysToAgent yes'" git fetch
               git checkout ${
               if itemConfig ? ref && itemConfig.ref != null
-              then "${itemConfig.ref}"
+              then itemConfig.ref
               else "main"
             }
               GIT_SSH_COMMAND="ssh -o 'AddKeysToAgent yes'" git pull
             fi
+            ${
+              if itemConfig ? sparse && itemConfig.sparse != []
+              then ''
+                cd "${newPath}"
+                git config core.sparseCheckout true
+                mkdir -p .git/info
+                printf "%s\n" ${builtins.concatStringsSep " " (map (pattern: "\"${pattern}\"") itemConfig.sparse)} > .git/info/sparse-checkout
+                git read-tree -mu HEAD
+              ''
+              else ""
+            }
           ''
-          else "";
-
-        sparseCheckoutCmd =
-          if (itemConfig ? url && itemConfig.url != null && itemConfig ? sparse && itemConfig.sparse != [])
-          then ''
-            if [ -d "${newPath}/.git" ]; then
-              cd "${newPath}"
-              git config core.sparseCheckout true
-              mkdir -p .git/info
-              printf "%s\n" ${builtins.concatStringsSep " " (map (pattern: "${pattern}") itemConfig.sparse)} > .git/info/sparse-checkout
-              git read-tree -mu HEAD
-            fi
-          ''
-          else "";
-
-        # Define symlink command if target is specified
-        symlinkCmd =
-          if itemConfig ? target && itemConfig.target != null
+          else if itemConfig ? target && itemConfig.target != null
           then ''
             if [ -e "${newPath}" ] && [ ! -L "${newPath}" ]; then
               mv "${newPath}" "${newPath}.bak-$(date +%Y%m%d-%H%M%S)"
@@ -93,33 +87,14 @@ with lib; let
             mkdir -p "$(dirname "${newPath}")"
             ln -sfn "${itemConfig.target}" "${newPath}"
           ''
-          else "";
-      in ''
-        if [ -n "${symlinkCmd}" ]
-        then
-          ${symlinkCmd}
-        fi
-
-        if [ ! -e "${newPath}" ] && [ -z "${gitCloneCmd}" ]
-        then
-          mkdir -p "${newPath}"
-        fi
-
-        if [ -n "${gitCloneCmd}" ]
-        then
-          ${gitCloneCmd}
-          if [ -n "${sparseCheckoutCmd}" ]
-          then
-            ${sparseCheckoutCmd}
-          fi
-        fi
+          else ''
+            mkdir -p "${newPath}"
+          ''
+        }
       '';
-
-      categoryItems = categoryConfig.items or {};
     in
-      concatMapStrings
-      (itemId: mkItemDir itemId categoryItems.${itemId})
-      (attrNames categoryItems);
+      concatMapStrings (itemId: mkItemDir itemId categoryConfig.items.${itemId})
+      (attrNames categoryConfig.items);
 
     mkArea = areaId: let
       areaConfig = areas.${areaId};
@@ -128,8 +103,14 @@ with lib; let
       concatMapStrings
       (categoryId: mkCategoryDirs areaId areaConfig categoryId areaCategories.${categoryId})
       (attrNames areaCategories);
-  in
-    concatMapStrings mkArea (attrNames areas);
+  in ''
+    set -e
+    # Ensure base directory exists
+    mkdir -p "${cfg.baseDir}"
+
+    # Create area directories
+    ${concatMapStrings (areaId: mkArea areaId cfg.areas.${areaId}) (attrNames cfg.areas)}
+  '';
 
   # XDG paths
   xdgStateHome = cfg.xdg.stateHome or "${config.home.homeDirectory}/.local/state";
