@@ -8,8 +8,9 @@
 
 {
   lib,
-  types,    # Module types
-  schemas,  # Output schemas
+  types, # Module types
+  schemas, # Output schemas
+  ...
 }: let
   # Get the standard flake type
   standardFlakeType = if types ? standard then types.standard else {};

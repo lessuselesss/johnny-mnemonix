@@ -7,6 +7,7 @@
   lib,
   types,
   schemas,
+  ...
 }: let
   # Get flake-parts flake type
   flakePartsType = if types ? flakeParts then types.flakeParts else {};

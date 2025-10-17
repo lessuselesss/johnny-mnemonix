@@ -7,7 +7,8 @@
 
 {
   lib,
-  types,  # lib.types.moduleTypes.common
+  types, # lib.types.moduleTypes.common
+  ...
 }: {
   # ===== jdIdentifier Type Tests =====
 
