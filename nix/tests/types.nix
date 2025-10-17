@@ -62,12 +62,17 @@ in {
 
     # Test flake types (moduleInput + schemas)
     flake-types-structure = safeImport ./types/unit/flake-types-structure.nix "Flake type structure";
+    flake-types-standard = safeImport ./types/unit/flake-types-standard.nix "Standard flake types (apps, devShells, etc.)";
+    flake-types-flake-parts = safeImport ./types/unit/flake-types-flake-parts.nix "flake-parts types with apps/devShells";
   };
 
   # ===== Integration Tests: Schema Validation =====
   integration = {
     # Test schemas validate correct outputs
     schemas-validate-outputs = safeImport ./types/integration/schemas-validate-outputs.nix "Schema output validation";
+
+    # Test schemas validate standard outputs (apps, devShells, packages, etc.)
+    schemas-validate-standard-outputs = safeImport ./types/integration/schemas-validate-standard-outputs.nix "Standard output schema validation";
 
     # Test schemas reject invalid outputs
     schemas-reject-invalid = safeImport ./types/integration/schemas-reject-invalid.nix "Schema rejection tests";
@@ -78,9 +83,13 @@ in {
 
   # ===== Real-World Tests: Community Flakes =====
   real-world = {
+    # Standard flake outputs validation with community patterns
+    standard-outputs-community = safeImport ./types/real-world/standard-outputs-community.nix "Standard outputs with community patterns";
+
     # Standard flake types
     nixos-community = safeImport ./types/real-world/nixos-community.nix "NixOS community modules";
     home-manager-community = safeImport ./types/real-world/home-manager-community.nix "home-manager community modules";
+    nix-darwin-community = safeImport ./types/real-world/nix-darwin-community.nix "nix-darwin community modules";
 
     # Custom flake types
     dendrix-community = safeImport ./types/real-world/dendrix-community.nix "Dendrix community modules";

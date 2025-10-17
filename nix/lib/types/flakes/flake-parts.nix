@@ -120,5 +120,80 @@ in {
         }) output;
       };
     };
+
+    # Schema for apps output
+    apps = {
+      version = 1;
+      doc = ''
+        Programs runnable with `nix run`.
+
+        Per-system apps organized by name. Each app must have a `program` attribute
+        pointing to an executable in the Nix store.
+
+        Example:
+          outputs.apps.x86_64-linux.myApp = {
+            type = "app";
+            program = "''${self.packages.x86_64-linux.myPackage}/bin/myApp";
+          };
+
+        With Johnny Decimal organization:
+          perSystem.apps."10.01-build-docs" = {
+            type = "app";
+            program = "''${config.packages.docs-builder}/bin/build";
+          };
+      '';
+      inventory = output: {
+        children = builtins.mapAttrs (system: systemApps: {
+          what = "apps for ${system}";
+          children = builtins.mapAttrs (name: app: {
+            what = "app: ${name}";
+            evalChecks = {
+              isAttrs = builtins.isAttrs app;
+              hasType = app ? type;
+              typeIsApp = if app ? type then app.type == "app" else false;
+              hasProgram = app ? program;
+              programIsString = if app ? program then builtins.isString app.program else false;
+            };
+          }) systemApps;
+        }) output;
+      };
+    };
+
+    # Schema for devShells output
+    devShells = {
+      version = 1;
+      doc = ''
+        Development shells for `nix develop`.
+
+        Per-system development environments. Each shell should be a derivation,
+        typically created with `pkgs.mkShell`.
+
+        Example:
+          outputs.devShells.x86_64-linux.default = pkgs.mkShell {
+            buildInputs = [ pkgs.nodejs pkgs.cargo ];
+          };
+
+        With Johnny Decimal organization:
+          perSystem.devShells."10.01-rust-env" = pkgs.mkShell {
+            buildInputs = with pkgs; [ rustc cargo rust-analyzer ];
+          };
+
+          perSystem.devShells."20.01-node-env" = pkgs.mkShell {
+            buildInputs = with pkgs; [ nodejs yarn ];
+          };
+      '';
+      inventory = output: {
+        children = builtins.mapAttrs (system: shells: {
+          what = "devShells for ${system}";
+          children = builtins.mapAttrs (name: shell: {
+            what = "devShell: ${name}";
+            evalChecks = {
+              isAttrs = builtins.isAttrs shell;
+              isDerivation = builtins.isAttrs shell && shell ? type && shell.type == "derivation";
+            };
+          }) shells;
+        }) output;
+      };
+    };
   };
 }

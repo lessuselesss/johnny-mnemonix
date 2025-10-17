@@ -54,7 +54,7 @@
       };
       item = {
         id = itemId;
-        name = itemName or "";
+        name = if itemName != null then itemName else "";
       };
     };
 

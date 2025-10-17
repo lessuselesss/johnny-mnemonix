@@ -17,6 +17,35 @@ This directory provides **complete flake type definitions** that combine:
 
 ---
 
+## Complete Standard Output Coverage
+
+All standard Nix flake outputs now have full input/output type definitions:
+
+| Output | Schema | Module Input | Provided By | Description |
+|--------|--------|--------------|-------------|-------------|
+| **Per-System Outputs** |
+| `apps` | ✅ | ✅ | standard.nix, flake-parts.nix | Runnable programs (`nix run`) |
+| `devShells` | ✅ | ✅ | standard.nix, flake-parts.nix | Development shells (`nix develop`) |
+| `packages` | ✅ | ✅ | standard.nix | Installable packages (`nix build`) |
+| `checks` | ✅ | ✅ | standard.nix | Tests and checks (`nix flake check`) |
+| `formatter` | ✅ | ✅ | standard.nix | Code formatter (`nix fmt`) |
+| `legacyPackages` | ✅ | ✅ | standard.nix | Legacy package sets (not in search) |
+| **Flake-Wide Outputs** |
+| `overlays` | ✅ | ✅ | standard.nix | Nixpkgs overlays |
+| `templates` | ✅ | ✅ | standard.nix | Project templates (`nix flake init`) |
+| `schemas` | ✅ | ✅ | standard.nix | Flake output schemas (meta!) |
+| `hydraJobs` | ✅ | ✅ | standard.nix | Hydra CI jobs |
+| `dockerImages` | ✅ | ✅ | standard.nix | Docker images |
+| **Configuration Outputs** |
+| `nixosModules` | ✅ | ✅ | nixos.nix | NixOS modules |
+| `nixosConfigurations` | ✅ | ✅ | nixos.nix | NixOS system configurations |
+| `homeModules` | ✅ | ✅ | home-manager.nix | home-manager modules |
+| `homeConfigurations` | ✅ | ✅ | home-manager.nix | home-manager configurations |
+| `darwinModules` | ✅ | ✅ | darwin.nix | nix-darwin modules |
+| `darwinConfigurations` | ✅ | ✅ | darwin.nix | nix-darwin configurations |
+
+---
+
 ## File Structure
 
 Each file exports:
@@ -46,13 +75,38 @@ Each file exports:
 
 ## Files
 
+### Standard Nix Outputs
+
+#### `standard.nix`
+**Purpose**: Complete coverage of standard Nix flake outputs
+
+**Module Input**: `flake.modules.apps`, `flake.modules.devShells`, `flake.modules.packages`, etc.
+**Output Schemas**: `apps`, `devShells`, `packages`, `checks`, `formatter`, `overlays`, `legacyPackages`, `templates`, `schemas`, `hydraJobs`, `dockerImages`
+
+**Key Feature**: Supports both perSystem and dedicated module classes
+
+Example:
+```nix
+# Approach 1: perSystem (standard)
+perSystem.apps."10.01-build" = {
+  type = "app";
+  program = "${config.packages.builder}/bin/build";
+};
+
+# Approach 2: module classes (auto-merged to perSystem)
+flake.modules.apps."10.01-build" = {
+  type = "app";
+  program = "${config.packages.builder}/bin/build";
+};
+```
+
 ### Meta Framework
 
 #### `flake-parts.nix`
 **Purpose**: Modular flake composition framework
 
 **Module Input**: `flake.modules.generic`
-**Output Schemas**: `flakeModules`, `flakeModule`, `modules`
+**Output Schemas**: `flakeModules`, `flakeModule`, `modules`, `apps`, `devShells`
 
 Example:
 ```nix

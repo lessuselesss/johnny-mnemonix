@@ -32,6 +32,7 @@
 
   # Import all flake types (combined inputs + schemas)
   flakeTypes = {
+    standard = import ./flakes/standard.nix {inherit lib;};
     flakeParts = import ./flakes/flake-parts.nix {inherit lib;};
     nixos = import ./flakes/nixos.nix {inherit lib;};
     homeManager = import ./flakes/home-manager.nix {inherit lib;};
@@ -86,6 +87,7 @@ in {
 
   # Helper: Get schemas by category
   schemasByCategory = {
+    # Meta framework schemas
     meta = {
       inherit (allSchemas)
         flakeModules
@@ -93,8 +95,23 @@ in {
         modules;
     };
 
+    # Standard Nix flake output schemas
     standard = {
       inherit (allSchemas)
+        # Per-system outputs
+        apps
+        devShells
+        packages
+        checks
+        formatter
+        # Flake-wide outputs
+        overlays
+        legacyPackages
+        templates
+        schemas
+        hydraJobs
+        dockerImages
+        # Configuration outputs
         nixosModules
         nixosConfigurations
         homeModules
@@ -104,6 +121,7 @@ in {
         darwinConfigurations;
     };
 
+    # Custom framework schemas
     custom = {
       inherit (allSchemas)
         dendrixModules

@@ -63,6 +63,22 @@ nix/tests/
 │   ├── versioning.test.nix             # 8 tests ✅
 │   └── classification.test.nix         # 8 tests ✅
 │
+├── types/                              # Type System Tests
+│   ├── unit/
+│   │   ├── common-types.nix            # Common JD types ⏳
+│   │   ├── module-types-*.nix          # Module option types ⏳
+│   │   ├── flake-types-standard.nix    # Standard flake types ✅
+│   │   └── flake-types-flake-parts.nix # flake-parts integration ✅
+│   ├── integration/
+│   │   ├── schemas-validate-outputs.nix       # Schema validation ⏳
+│   │   ├── schemas-validate-standard-outputs.nix  # Standard validation ✅
+│   │   └── schemas-reject-invalid.nix  # Rejection tests ⏳
+│   └── real-world/
+│       ├── standard-outputs-community.nix  # Community patterns ✅
+│       ├── nixos-community.nix            # NixOS modules ✅
+│       ├── home-manager-community.nix     # home-manager ✅
+│       └── nix-darwin-community.nix       # nix-darwin ✅
+│
 ├── integration/                        # ⏳ Pending
 │   ├── two-pass-loading.test.nix       # 5+ tests
 │   ├── self-validation.test.nix        # 5+ tests
@@ -565,16 +581,165 @@ git commit -m "feat(primitives): implement my-component with TDD"
 
 ## Current Status
 
-### Completed (126/126 tests)
+### Completed (246+ tests)
 - ✅ Primitives: 55/55 tests (100%)
 - ✅ Composition: 45/45 tests (100%)
 - ✅ Builders: 26/26 tests (100%)
+- ✅ Types (Standard): 120+ tests (Unit + Integration + Real-world)
+  - Unit: flake-types-standard, flake-types-flake-parts
+  - Integration: schemas-validate-standard-outputs
+  - Real-world: standard-outputs-community, nixos-community, home-manager-community, nix-darwin-community
 
 ### Pending
+- ⏳ Types (Remaining): Common types, module types
 - ⏳ Integration: 0/15 tests (0%)
 - ⏳ E2E: 0/8 tests (0%)
 
-**Total**: 126/149 tests (84.6%)
+**Total**: 246+/280+ tests (87.8%+)
+
+---
+
+## Type System Tests (120+ tests ✅)
+
+The type system tests validate our complete type definitions for standard Nix flake outputs, ensuring compatibility with real-world community patterns.
+
+### Unit Tests: Flake Type Definitions
+
+#### `flake-types-standard.nix` (50+ tests)
+Tests for standard Nix flake output types (apps, devShells, packages, etc.)
+
+**Test Suites**:
+1. Apps schema validation (10+ tests)
+2. DevShells schema validation (8+ tests)
+3. Packages schema validation (8+ tests)
+4. Checks schema validation (6+ tests)
+5. Overlays schema validation (6+ tests)
+6. Templates schema validation (6+ tests)
+7. Standard outputs structure validation (6+ tests)
+
+**Example**:
+```nix
+testAppsSchemaValidatesCorrectOutput = {
+  expr = let
+    output = {
+      x86_64-linux.hello = {
+        type = "app";
+        program = "/nix/store/xxx-hello/bin/hello";
+      };
+    };
+  in validateSchema appsSchema output;
+  expected = true;
+};
+```
+
+#### `flake-types-flake-parts.nix` (40+ tests)
+Tests for flake-parts integration with Johnny Decimal organization
+
+**Test Suites**:
+1. flake-parts module structure (8+ tests)
+2. Apps with JD naming (10+ tests)
+3. DevShells with JD naming (10+ tests)
+4. Module class organization (8+ tests)
+5. Per-system outputs validation (4+ tests)
+
+**Example**:
+```nix
+testAppsSupportsJohnnyDecimalNames = {
+  expr = let
+    output = {
+      x86_64-linux = {
+        "10.01-build-docs" = { type = "app"; program = "..."; };
+        "20.01-deploy-staging" = { type = "app"; program = "..."; };
+      };
+    };
+  in validateSchema appsSchema output;
+  expected = true;
+};
+```
+
+### Integration Tests: Schema Validation
+
+#### `schemas-validate-standard-outputs.nix` (30+ tests)
+Tests that schemas correctly validate realistic flake output structures
+
+**Test Suites**:
+1. Apps validation (6+ tests)
+2. DevShells validation (6+ tests)
+3. Packages validation (6+ tests)
+4. Multi-output validation (6+ tests)
+5. Cross-system validation (6+ tests)
+
+**Example**:
+```nix
+testCompleteFlakeOutputValidation = {
+  expr = let
+    hasValidApps = validateOutput schemas.apps {...};
+    hasValidDevShells = validateOutput schemas.devShells {...};
+    hasValidPackages = validateOutput schemas.packages {...};
+  in hasValidApps && hasValidDevShells && hasValidPackages;
+  expected = true;
+};
+```
+
+### Real-World Tests: Community Patterns
+
+#### `standard-outputs-community.nix` (30+ tests)
+Tests that our schemas validate actual community flake patterns
+
+**Test Suites**:
+1. nixpkgs legacyPackages structure (4+ tests)
+2. home-manager modules (4+ tests)
+3. Standard apps/devShells/packages patterns (9+ tests)
+4. Overlays and templates (4+ tests)
+5. Cross-system and edge cases (6+ tests)
+6. Schema consistency (3+ tests)
+
+**Example**:
+```nix
+testAppsDescriptiveNamesPattern = {
+  expr = let
+    # Pattern seen in community configs
+    testOutput = {
+      x86_64-linux = {
+        "deploy-nixos" = { type = "app"; program = "..."; };
+        "update-flake" = { type = "app"; program = "..."; };
+      };
+    };
+  in validateSchema schemas.apps testOutput;
+  expected = true;
+};
+```
+
+#### `nixos-community.nix` (14+ tests)
+Tests NixOS module and configuration patterns from the community
+
+**Test Suites**:
+1. nixosModules schema validation (4+ tests)
+2. nixosConfigurations schema validation (4+ tests)
+3. Community organization patterns (2+ tests)
+4. Johnny Decimal naming support (2+ tests)
+5. Schema properties validation (2+ tests)
+
+#### `home-manager-community.nix` (16+ tests)
+Tests home-manager module and configuration patterns
+
+**Test Suites**:
+1. homeModules schema validation (4+ tests)
+2. homeConfigurations schema validation (4+ tests)
+3. Tool category organization (3+ tests)
+4. Development environment patterns (2+ tests)
+5. Alias compatibility (1+ tests)
+6. Schema properties validation (2+ tests)
+
+#### `nix-darwin-community.nix` (14+ tests)
+Tests nix-darwin module and configuration patterns for macOS
+
+**Test Suites**:
+1. darwinModules schema validation (4+ tests)
+2. darwinConfigurations schema validation (4+ tests)
+3. macOS subsystem patterns (2+ tests)
+4. Mixed architecture support (2+ tests)
+5. Schema properties validation (2+ tests)
 
 ---
 

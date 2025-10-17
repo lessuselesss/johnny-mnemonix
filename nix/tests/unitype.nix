@@ -25,4 +25,9 @@ in {
 
   # IR tests (28 tests)
   ir = safeImport ./unitype/ir.test.nix;
+
+  # Encoder tests
+  encoders = {
+    nixos = safeImport ./unitype/encoders/nixos.test.nix;
+  };
 }

@@ -367,29 +367,29 @@
         # Convenience exports for library layers (per-system)
         # lib.<system>.primitives, lib.<system>.composition, lib.<system>.builders, lib.<system>.types, lib.<system>.unitype
         lib = lib.genAttrs ["x86_64-linux" "aarch64-linux" "aarch64-darwin" "x86_64-darwin"] (system: {
-          primitives = cells.lib.${system}.primitives or {};
-          composition = cells.lib.${system}.composition or {};
-          builders = cells.lib.${system}.builders or {};
-          types = cells.lib.${system}.types or {};
-          unitype = cells.lib.${system}.unitype or {};
+          primitives = cells.${system}.lib.primitives or {};
+          composition = cells.${system}.lib.composition or {};
+          builders = cells.${system}.lib.builders or {};
+          types = cells.${system}.lib.types or {};
+          unitype = cells.${system}.lib.unitype or {};
         });
 
         # Convenience exports for frameworks (per-system)
         frameworks = lib.genAttrs ["x86_64-linux" "aarch64-linux" "aarch64-darwin" "x86_64-darwin"] (system:
-          cells.frameworks.${system}.configs or {}
+          cells.${system}.frameworks.configs or {}
         );
 
         # Convenience exports for tests (per-system)
         tests = lib.genAttrs ["x86_64-linux" "aarch64-linux" "aarch64-darwin" "x86_64-darwin"] (system: {
-          unit = cells.tests.${system}.unit or {};
-          integration = cells.tests.${system}.integration or {};
-          e2e = cells.tests.${system}.e2e or {};
-          types = cells.tests.${system}.types or {};
+          unit = cells.${system}.tests.unit or {};
+          integration = cells.${system}.tests.integration or {};
+          e2e = cells.${system}.tests.e2e or {};
+          types = cells.${system}.tests.types or {};
         });
 
         # Convenience exports for examples (per-system)
         examples = lib.genAttrs ["x86_64-linux" "aarch64-linux" "aarch64-darwin" "x86_64-darwin"] (system:
-          cells.examples.${system}.configs or {}
+          cells.${system}.examples.configs or {}
         );
 
         # Define the module
@@ -423,13 +423,13 @@
         ...
       }: {
         # Apps from cells
-        apps = cells.apps.${system}.runnables or {};
+        apps = cells.${system}.apps.runnables or {};
 
         # All checks including tests
         checks = let
-          unitTests = cells.tests.${system}.unit or {};
-          typesTests = cells.tests.${system}.types or {};
-          unitypeTests = cells.tests.${system}.unitype or {};
+          unitTests = cells.${system}.tests.unit or {};
+          typesTests = cells.${system}.tests.types or {};
+          unitypeTests = cells.${system}.tests.unitype or {};
           testLib = unitTests.testLib or typesTests.testLib or unitypeTests.testLib or null;
 
           # Create a check for each test suite
@@ -514,6 +514,7 @@
 
           # Unitype tests
           tests-unitype-ir = mkTestCheck "unitype-ir" ((cells.tests.${system}.unitype or {}).ir or {});
+          tests-unitype-encoders-nixos = mkTestCheck "unitype-encoders-nixos" ((cells.tests.${system}.unitype or {}).encoders.nixos or {});
         };
 
         # Development shell
