@@ -331,7 +331,7 @@ with lib; let
       # Build metadata parts
       gitMeta = if isGit then "git: ${itemConfig.url}" else null;
       symlinkMeta = if isSymlink then "symlink to: ${itemConfig.target}" else null;
-      moduleMeta = if moduleSource != null then "module: ${moduleSource}" else null;
+      moduleMeta = if moduleSource != null then "module: ${moduleSource.path} (${moduleSource.format})" else null;
 
       # Combine non-null metadata parts
       metaParts = builtins.filter (x: x != null) [gitMeta symlinkMeta moduleMeta];

@@ -138,71 +138,174 @@
       }" {parsed = false;}
       else {parsed = false;};
 
-    # Auto-discover modules from modules/ directory
-    # Exclude: johnny-mnemonix.nix (the main HM module), example-project.nix (template), README.md
+    # Parse johnny-decimal directory hierarchy format
+    # Example: modules/[01-09] Meta/(01) Naming Convention/<01>Encapsulators.nix
+    parseJDDirectory = fullPath: let
+      # Remove modules/ prefix to get relative path
+      relPath = lib.removePrefix "modules/" fullPath;
+      parts = lib.splitString "/" relPath;
+
+      # Only valid if we have exactly 3 parts: area/category/item.nix
+      hasCorrectDepth = builtins.length parts == 3;
+
+      # Escape syntax elements for regex
+      idOpen = escapeRegexString syntaxConfig.idNumEncapsulator.open;
+      idClose = escapeRegexString syntaxConfig.idNumEncapsulator.close;
+      areaOpen = escapeRegexString syntaxConfig.areaRangeEncapsulator.open;
+      areaClose = escapeRegexString syntaxConfig.areaRangeEncapsulator.close;
+      catOpen = escapeRegexString syntaxConfig.categoryNumEncapsulator.open;
+      catClose = escapeRegexString syntaxConfig.categoryNumEncapsulator.close;
+      numNameSep = escapeRegexString syntaxConfig.numeralNameSeparator;
+
+      # Raw characters for character classes
+      areaCloseRaw = syntaxConfig.areaRangeEncapsulator.close;
+      catCloseRaw = syntaxConfig.categoryNumEncapsulator.close;
+      idCloseRaw = syntaxConfig.idNumEncapsulator.close;
+
+      # Parse area directory: [01-09] Meta
+      areaDir = if hasCorrectDepth then builtins.elemAt parts 0 else "";
+      areaPattern = "${areaOpen}([0-9]+-[0-9]+)${areaClose}${numNameSep}(.+)";
+      areaMatch = builtins.match areaPattern areaDir;
+
+      # Parse category directory: (01) Naming Convention Definitions
+      catDir = if hasCorrectDepth then builtins.elemAt parts 1 else "";
+      catPattern = "${catOpen}([0-9]+)${catClose}${numNameSep}(.+)";
+      catMatch = builtins.match catPattern catDir;
+
+      # Parse item file: <01>Encapsulators.nix
+      itemFile = if hasCorrectDepth then lib.removeSuffix ".nix" (builtins.elemAt parts 2) else "";
+      itemPattern = "${idOpen}([0-9]+)${idClose}${numNameSep}(.+)";
+      itemMatch = builtins.match itemPattern itemFile;
+
+      # Extract matched components
+      areaRange = if areaMatch != null then builtins.elemAt areaMatch 0 else null;
+      areaName = if areaMatch != null then builtins.elemAt areaMatch 1 else null;
+      catNum = if catMatch != null then builtins.elemAt catMatch 0 else null;
+      catName = if catMatch != null then builtins.elemAt catMatch 1 else null;
+      itemNum = if itemMatch != null then builtins.elemAt itemMatch 0 else null;
+      itemName = if itemMatch != null then builtins.elemAt itemMatch 1 else null;
+
+      # Validation: all parts must match
+      allMatched = areaMatch != null && catMatch != null && itemMatch != null;
+
+      # Validation: category must fall within area range
+      validRange = if allMatched then
+        let
+          rangeParts = lib.splitString "-" areaRange;
+          rangeStart = lib.toInt (builtins.elemAt rangeParts 0);
+          rangeEnd = lib.toInt (builtins.elemAt rangeParts 1);
+          catNumInt = lib.toInt catNum;
+        in
+          catNumInt >= rangeStart && catNumInt <= rangeEnd
+      else false;
+
+      allValid = allMatched && validRange;
+    in
+      if allMatched && allValid
+      then {
+        parsed = true;
+        areaId = areaRange;
+        inherit areaName;
+        categoryId = catNum;
+        inherit categoryName;
+        itemId = "${catNum}.${itemNum}";
+        inherit itemName;
+        format = "directory";
+      }
+      else if allMatched && !allValid
+      then builtins.trace "Warning: Invalid Johnny Decimal hierarchy in directory '${fullPath}': category ${catNum} not in range ${areaRange}" {parsed = false;}
+      else {parsed = false;};
+
+    # Recursively find all .nix files in a directory
+    findNixFiles = dir: let
+      entries = if builtins.pathExists dir then builtins.readDir dir else {};
+
+      processEntry = name: type: let
+        fullPath = "${dir}/${name}";
+        relPath = lib.removePrefix "modules/" fullPath;
+      in
+        if type == "directory"
+        then findNixFiles fullPath
+        else if type == "regular" && lib.hasSuffix ".nix" name
+        then [relPath]
+        else [];
+    in
+      lib.flatten (lib.mapAttrsToList processEntry entries);
+
+    # Auto-discover all .nix modules recursively from modules/ directory
+    # Returns relative paths like: "test.nix" or "area/cat/item.nix"
     allModuleFiles =
       if builtins.pathExists ./modules
       then
         builtins.filter
-        (name:
-          name != "johnny-mnemonix.nix"
-          && name != "example-project.nix"
-          && lib.hasSuffix ".nix" name)
-        (builtins.attrNames (builtins.readDir ./modules))
+        (path:
+          let filename = baseNameOf path;
+          in filename != "johnny-mnemonix.nix"
+          && filename != "example-project.nix"
+          && filename != "README.md")
+        (findNixFiles ./modules)
       else [];
 
+    # Unified module parsing: try both flat and directory formats
+    parseModule = path: let
+      # Extract just the filename for flat format
+      filename = baseNameOf path;
+
+      # Try flat self-describing format first
+      flatParse = parseJDFilename filename;
+
+      # If flat fails, try directory hierarchy format
+      dirParse = if !flatParse.parsed then parseJDDirectory path else {parsed = false;};
+    in
+      if flatParse.parsed
+      then flatParse // {inherit path; format = "flat";}
+      else if dirParse.parsed
+      then dirParse // {inherit path; format = "directory";}
+      else {parsed = false; inherit path; format = "unknown";};
+
+    # Parse all discovered modules
+    allParsedModules = map parseModule allModuleFiles;
+
     # Separate parsed JD modules from simple path-based modules
-    parsedModules = builtins.filter (f: (parseJDFilename f).parsed) allModuleFiles;
-    simpleModules = builtins.filter (f: !(parseJDFilename f).parsed) allModuleFiles;
+    parsedModules = builtins.filter (m: m.parsed && m.format != "unknown") allParsedModules;
+    simpleModules = builtins.filter (m: !m.parsed) allParsedModules;
 
     # For simple modules: extract managed path names (without .nix extension)
-    managedPathNames = map (file: lib.removeSuffix ".nix" file) simpleModules;
+    managedPathNames = map (m: lib.removeSuffix ".nix" (baseNameOf m.path)) simpleModules;
 
     # Build johnny-mnemonix areas configuration from parsed modules
-    # Also track which module file created each item
+    # Modules now include both flat and directory formats
     jdAreasFromModules = let
-      # Pair each module filename with its parsed data
-      parsedWithFiles = map (file: {
-        inherit file;
-        data = parseJDFilename file;
-      }) parsedModules;
-
-      # Filter to only successfully parsed modules
-      parsedData = map (item: item.data) (builtins.filter (item: item.data.parsed) parsedWithFiles);
-
       # Group by area, then by category
-      groupByArea = lib.foldl (acc: data:
+      groupByArea = lib.foldl (acc: module:
         acc // {
-          ${data.areaId} = (acc.${data.areaId} or {}) // {
-            name = data.areaName;
-            categories = (acc.${data.areaId}.categories or {}) // {
-              ${data.categoryId} = {
-                name = data.categoryName;
-                items = ((acc.${data.areaId}.categories.${data.categoryId}.items or {}) // {
-                  ${data.itemId} = data.itemName;
+          ${module.areaId} = (acc.${module.areaId} or {}) // {
+            name = module.areaName;
+            categories = (acc.${module.areaId}.categories or {}) // {
+              ${module.categoryId} = {
+                name = module.categoryName;
+                items = ((acc.${module.areaId}.categories.${module.categoryId}.items or {}) // {
+                  ${module.itemId} = module.itemName;
                 });
               };
             };
           };
         }
-      ) {} parsedData;
+      ) {} parsedModules;
     in groupByArea;
 
     # Build mapping of item IDs to their source module files
-    # Key format: "areaId.categoryId.itemId" -> "module-filename.nix"
-    jdModuleSources = let
-      parsedWithFiles = map (file: {
-        inherit file;
-        data = parseJDFilename file;
-      }) parsedModules;
-    in
-      lib.foldl (acc: item:
-        if item.data.parsed then
-          acc // {
-            "${item.data.areaId}.${item.data.categoryId}.${item.data.itemId}" = item.file;
-          }
-        else acc
-      ) {} parsedWithFiles;
+    # Tracks both flat and directory format modules
+    # Key format: "areaId.categoryId.itemId" -> { path = "..."; format = "flat"|"directory"; }
+    jdModuleSources =
+      lib.foldl (acc: module:
+        acc // {
+          "${module.areaId}.${module.categoryId}.${module.itemId}" = {
+            path = module.path;
+            format = module.format;
+          };
+        }
+      ) {} parsedModules;
   in
     flake-parts.lib.mkFlake {inherit inputs;} {
       systems = ["x86_64-linux" "aarch64-linux" "aarch64-darwin" "x86_64-darwin"];
