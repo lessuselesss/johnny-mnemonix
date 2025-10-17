@@ -4,6 +4,10 @@
   inputs = {
     flake-parts.url = "github:hercules-ci/flake-parts";
     nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
+    std = {
+      url = "github:divnix/std";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
     home-manager = {
       url = "github:nix-community/home-manager";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -241,10 +245,14 @@
       then
         builtins.filter
         (m:
-          let filename = baseNameOf m.relPath;
+          let
+            filename = baseNameOf m.relPath;
+            # Exclude config modules (01.xx) until they're refactored for std
+            isConfigModule = lib.hasPrefix "[01." filename;
           in filename != "johnny-mnemonix.nix"
           && filename != "example-project.nix"
-          && filename != "README.md")
+          && filename != "README.md"
+          && !isConfigModule)
         (findNixFiles ./modules "" ./modules)
       else [];
 
@@ -309,6 +317,29 @@
           };
         }
       ) {} parsedModules;
+
+    # Load cells using divnix/std
+    cells = inputs.std.growOn {
+      inherit inputs;
+      cellsFrom = ./nix;
+      cellBlocks = [
+        # Library cells
+        (inputs.std.blockTypes.functions "primitives")
+        (inputs.std.blockTypes.functions "composition")
+        (inputs.std.blockTypes.functions "builders")
+
+        # Framework cells
+        (inputs.std.blockTypes.functions "configs")
+
+        # Config cells
+        (inputs.std.blockTypes.functions "modules")
+
+        # Test cells
+        (inputs.std.blockTypes.functions "unit")
+        (inputs.std.blockTypes.functions "integration")
+        (inputs.std.blockTypes.functions "e2e")
+      ];
+    };
   in
     flake-parts.lib.mkFlake {inherit inputs;} {
       systems = ["x86_64-linux" "aarch64-linux" "aarch64-darwin" "x86_64-darwin"];
@@ -320,6 +351,34 @@
 
       # Flake-wide outputs (not system-specific)
       flake = {
+        # Export cells (divnix/std)
+        inherit cells;
+
+        # Convenience exports for library layers (per-system)
+        # lib.<system>.primitives, lib.<system>.composition, lib.<system>.builders
+        lib = lib.genAttrs ["x86_64-linux" "aarch64-linux" "aarch64-darwin" "x86_64-darwin"] (system: {
+          primitives = cells.lib.${system}.primitives or {};
+          composition = cells.lib.${system}.composition or {};
+          builders = cells.lib.${system}.builders or {};
+        });
+
+        # Convenience exports for frameworks (per-system)
+        frameworks = lib.genAttrs ["x86_64-linux" "aarch64-linux" "aarch64-darwin" "x86_64-darwin"] (system:
+          cells.frameworks.${system}.configs or {}
+        );
+
+        # Convenience exports for tests (per-system)
+        tests = lib.genAttrs ["x86_64-linux" "aarch64-linux" "aarch64-darwin" "x86_64-darwin"] (system: {
+          unit = cells.tests.${system}.unit or {};
+          integration = cells.tests.${system}.integration or {};
+          e2e = cells.tests.${system}.e2e or {};
+        });
+
+        # Convenience exports for examples (per-system)
+        examples = lib.genAttrs ["x86_64-linux" "aarch64-linux" "aarch64-darwin" "x86_64-darwin"] (system:
+          cells.examples.${system}.configs or {}
+        );
+
         # Define the module
         homeManagerModules = let
           # Wrap the main module to inject managedPathNames, jdDefinitionsFromModules, jdModuleSources, and syntaxConfig
