@@ -544,6 +544,19 @@
           tests-unitype-encoders-nixos = mkTestCheck "unitype-encoders-nixos" ((cells.tests.${system}.unitype or {}).encoders.nixos or {});
           tests-unitype-decoders-dendrix = mkTestCheck "unitype-decoders-dendrix" ((cells.tests.${system}.unitype or {}).decoders.dendrix or {});
           tests-unitype-integration-transform-to-dendrix = mkTestCheck "unitype-integration-transform-to-dendrix" ((cells.tests.${system}.unitype or {}).integration.transformToDendrix or {});
+
+          # Linting checks
+          lint-statix = pkgs.runCommand "lint-statix" {} ''
+            echo "Running statix linter..."
+            ${pkgs.statix}/bin/statix check ${./.}
+            touch $out
+          '';
+
+          lint-deadnix = pkgs.runCommand "lint-deadnix" {} ''
+            echo "Running deadnix linter..."
+            ${pkgs.deadnix}/bin/deadnix --fail ${./.}
+            touch $out
+          '';
         };
 
         # Treefmt - unified formatting for all file types
@@ -556,6 +569,10 @@
             # Nix files
             alejandra.enable = true;
 
+            # Nix linters
+            statix.enable = true;  # Anti-patterns and best practices
+            deadnix.enable = true; # Dead code detection
+
             # Markdown files
             mdformat.enable = true;
 
@@ -567,10 +584,20 @@
           };
 
           # Exclude generated and external files
-          settings.formatter.alejandra.excludes = [
-            "flake.lock"
-            "*.lock"
-          ];
+          settings.formatter = {
+            alejandra.excludes = [
+              "flake.lock"
+              "*.lock"
+            ];
+            statix.excludes = [
+              "flake.lock"
+              "*.lock"
+            ];
+            deadnix.excludes = [
+              "flake.lock"
+              "*.lock"
+            ];
+          };
         };
 
         # Mission-control scripts - compose helpers for transformation workflows
@@ -721,6 +748,18 @@
             '';
             category = "Development";
           };
+
+          lint = {
+            description = "Lint Nix code (statix + deadnix)";
+            exec = ''
+              echo "Running statix..."
+              ${pkgs.statix}/bin/statix check .
+              echo ""
+              echo "Running deadnix..."
+              ${pkgs.deadnix}/bin/deadnix --fail .
+            '';
+            category = "Development";
+          };
         };
 
         # Development shell
@@ -745,7 +784,7 @@
             echo "  Test:      , test-transformation"
             echo "  Helpers:   , list-helpers"
             echo ""
-            echo "Development: , run-tests, , fmt"
+            echo "Development: , run-tests, , fmt, , lint"
             echo ""
           '';
         };

@@ -84,7 +84,11 @@ nix develop
 
 - `, fmt` - Format all project files (Nix, Markdown, JSON)
 
-  - Uses: treefmt (alejandra + mdformat + prettier)
+  - Uses: treefmt (alejandra + mdformat + prettier + statix + deadnix)
+
+- `, lint` - Lint Nix code for anti-patterns and dead code
+
+  - Uses: statix (anti-patterns) + deadnix (unused code)
 
 ## Helper Composition Examples
 
