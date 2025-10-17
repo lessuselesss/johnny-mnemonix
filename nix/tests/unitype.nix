@@ -35,4 +35,9 @@ in {
   decoders = {
     dendrix = safeImport ./unitype/decoders/dendrix.test.nix;
   };
+
+  # Integration tests
+  integration = {
+    transformToDendrix = safeImport ./unitype/integration/transform-to-dendrix.test.nix;
+  };
 }

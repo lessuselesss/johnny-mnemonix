@@ -7,6 +7,9 @@
   inputs,
   cell,
 }: {
+  # Unitype transformation examples
+  transform-nixos-to-dendrix = import ./transform-nixos-to-dendrix.nix {inherit inputs cell;};
+
   # Example configurations (4+ basic examples)
   # classic-johnny-decimal = import ./01-classic-johnny-decimal;
   # hexadecimal-variant = import ./02-hexadecimal-variant;
