@@ -77,7 +77,11 @@
 
       # Build the full pattern
       # [ID.ID]{Range Name}__(Cat Name)__[Num Name]
-      pattern = "${idOpen}([0-9]+)\\.([0-9]+)${idClose}${areaOpen}([^${areaClose}]+)${areaClose}${areaCatSep}${catOpen}([0-9]+)${numNameSep}([^${catClose}]+)${catClose}${catItemSep}${idOpen}([0-9]+)${numNameSep}(.+)${idClose}";
+      # Note: For character classes [^X], we need raw characters, not escaped forms
+      areaCloseRaw = syntaxConfig.areaRangeEncapsulator.close;
+      catCloseRaw = syntaxConfig.categoryNumEncapsulator.close;
+
+      pattern = "${idOpen}([0-9]+)\\.([0-9]+)${idClose}${areaOpen}([^${areaCloseRaw}]+)${areaClose}${areaCatSep}${catOpen}([0-9]+)${numNameSep}([^${catCloseRaw}]+)${catClose}${catItemSep}${idOpen}([0-9]+)${numNameSep}(.+)${idClose}";
 
       match = builtins.match pattern base;
 
