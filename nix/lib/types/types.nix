@@ -11,35 +11,35 @@
   inherit (inputs.nixpkgs) lib;
 
   # Import common JD types first
-  common = import ./module-types/common.nix {inherit lib;};
+  common = import ./modules/common.nix {inherit lib;};
 
   # Import all module types (pure, class-specific)
   moduleTypes = {
     inherit common;
-    flakeParts = import ./module-types/flake-parts.nix {inherit lib;};
-    nixos = import ./module-types/nixos.nix {inherit lib;};
-    homeManager = import ./module-types/home-manager.nix {inherit lib;};
-    darwin = import ./module-types/nix-darwin.nix {inherit lib;};
-    dendrix = import ./module-types/dendrix.nix {inherit lib;};
-    systemManager = import ./module-types/system-manager.nix {inherit lib;};
-    typix = import ./module-types/typix.nix {inherit lib;};
-    jm = import ./module-types/jm.nix {inherit lib common;};
-    std = import ./module-types/std.nix {inherit lib;};
-    hive = import ./module-types/hive.nix {inherit lib;};
+    flakeParts = import ./modules/flake-parts.nix {inherit lib;};
+    nixos = import ./modules/nixos.nix {inherit lib;};
+    homeManager = import ./modules/home-manager.nix {inherit lib;};
+    darwin = import ./modules/nix-darwin.nix {inherit lib;};
+    dendrix = import ./modules/dendrix.nix {inherit lib;};
+    systemManager = import ./modules/system-manager.nix {inherit lib;};
+    typix = import ./modules/typix.nix {inherit lib;};
+    jm = import ./modules/jm.nix {inherit lib common;};
+    std = import ./modules/std.nix {inherit lib;};
+    hive = import ./modules/hive.nix {inherit lib;};
   };
 
   # Import all flake types (combined inputs + schemas)
   flakeTypes = {
-    flakeParts = import ./flake-types/flake-parts.nix {inherit lib;};
-    nixos = import ./flake-types/nixos.nix {inherit lib;};
-    homeManager = import ./flake-types/home-manager.nix {inherit lib;};
-    darwin = import ./flake-types/darwin.nix {inherit lib;};
-    dendrix = import ./flake-types/dendrix.nix {inherit lib;};
-    systemManager = import ./flake-types/system-manager.nix {inherit lib;};
-    typix = import ./flake-types/typix.nix {inherit lib;};
-    jm = import ./flake-types/jm.nix {inherit lib;};
-    std = import ./flake-types/std.nix {inherit lib;};
-    hive = import ./flake-types/hive.nix {inherit lib;};
+    flakeParts = import ./flakes/flake-parts.nix {inherit lib;};
+    nixos = import ./flakes/nixos.nix {inherit lib;};
+    homeManager = import ./flakes/home-manager.nix {inherit lib;};
+    darwin = import ./flakes/darwin.nix {inherit lib;};
+    dendrix = import ./flakes/dendrix.nix {inherit lib;};
+    systemManager = import ./flakes/system-manager.nix {inherit lib;};
+    typix = import ./flakes/typix.nix {inherit lib;};
+    jm = import ./flakes/jm.nix {inherit lib;};
+    std = import ./flakes/std.nix {inherit lib;};
+    hive = import ./flakes/hive.nix {inherit lib;};
   };
 
   # Aggregate all flake schemas for easy export

@@ -2,7 +2,7 @@
 
 **Layer**: 4 (Types)
 **Purpose**: Complete flake type system with module types and output validation
-**Components**: `module-types/`, `flake-types/`, `types.nix`
+**Components**: `modules/`, `flakes/`, `types.nix`
 **Status**: ✅ Complete
 
 ---
@@ -27,7 +27,7 @@ This enables:
 nix/lib/types/
 ├── CLAUDE.md                           # This file
 ├── types.nix                           # Block export (divnix/std)
-├── module-types/                       # NixOS module option types
+├── modules/                            # NixOS module option types
 │   ├── common.nix                      # Shared Johnny Decimal types
 │   ├── nixos.nix                       # NixOS-specific types
 │   ├── home-manager.nix                # home-manager-specific types
@@ -37,8 +37,8 @@ nix/lib/types/
 │   ├── typix.nix                       # Typix-specific types
 │   ├── jm.nix                          # Johnny-Mnemonix types (dogfood)
 │   ├── std.nix                         # divnix/std-specific types
-│   └── hive.nix                        # Hive/Colmena-specific types
-└── flake-types/                        # Complete flake type definitions
+│   └── hive.nix                        # divnix/hive-specific types
+└── flakes/                             # Complete flake type definitions
     ├── nixos.nix                       # NixOS flake type
     ├── home-manager.nix                # home-manager flake type
     ├── darwin.nix                      # nix-darwin flake type
@@ -47,7 +47,7 @@ nix/lib/types/
     ├── typix.nix                       # Typix flake type
     ├── jm.nix                          # Johnny-Mnemonix flake type
     ├── std.nix                         # divnix/std flake type
-    └── hive.nix                        # Hive/Colmena flake type
+    └── hive.nix                        # divnix/hive flake type
 ```
 
 ---
@@ -60,10 +60,10 @@ NixOS-style module option types (`lib.types.*`) for defining module options in e
 
 ### Structure
 
-Each `module-types/<class>.nix` file exports pure, class-specific types:
+Each `modules/<class>.nix` file exports pure, class-specific types:
 
 ```nix
-# module-types/nixos.nix
+# modules/nixos.nix
 {lib}: {
   nixosModulePath = lib.types.path;
   nixosConfigFile = lib.types.submodule { /* ... */ };
@@ -74,7 +74,7 @@ Each `module-types/<class>.nix` file exports pure, class-specific types:
 
 ### Common Types
 
-`module-types/common.nix` provides shared Johnny Decimal types used by `jm.nix`:
+`modules/common.nix` provides shared Johnny Decimal types used by `jm.nix`:
 
 ```nix
 {
@@ -115,7 +115,7 @@ Complete flake type definitions combining:
 
 ### Structure
 
-Each `flake-types/<class>.nix` file exports:
+Each `flakes/<class>.nix` file exports:
 
 ```nix
 {lib}: {
@@ -141,7 +141,7 @@ Each `flake-types/<class>.nix` file exports:
 ### Example: NixOS Flake Type
 
 ```nix
-# flake-types/nixos.nix
+# flakes/nixos.nix
 {
   moduleInput = {
     description = "NixOS system configuration modules";
@@ -203,7 +203,7 @@ Each `flake-types/<class>.nix` file exports:
 | `typix` | flake.modules.typix | typixModules, typixProjects | Typst document projects |
 | `jm` | flake.modules.jm | jmModules, jmConfigurations | Johnny-Mnemonix (dogfood) |
 | `std` | flake.modules.std | stdModules, stdCells | divnix/std cell/block structure |
-| `hive` | flake.modules.hive | hiveModules, colmenaModules, hive | NixOS deployment (Colmena) |
+| `hive` | flake.modules.hive | hiveModules, hive | divnix/hive NixOS deployment (std-based) |
 
 ---
 
@@ -368,7 +368,7 @@ cells.lib.${system}.types.schemas.nixosModules
     typixModules, typixProjects,
     jmModules, jmConfigurations,
     stdModules, stdCells,
-    hiveModules, colmenaModules, hive,
+    hiveModules, hive,
   };
 
   # All module inputs in one place
@@ -411,8 +411,8 @@ Types compose naturally:
 ### 4. Extensibility
 
 Easy to add new flake types:
-1. Create `module-types/<class>.nix`
-2. Create `flake-types/<class>.nix`
+1. Create `modules/<class>.nix`
+2. Create `flakes/<class>.nix`
 3. Add to `types.nix` exports
 
 ---
