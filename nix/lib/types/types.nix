@@ -19,7 +19,7 @@
     flakeParts = import ./modules/flake-parts.nix {inherit lib;};
     nixos = import ./modules/nixos.nix {inherit lib;};
     homeManager = import ./modules/home-manager.nix {inherit lib;};
-    darwin = import ./modules/nix-darwin.nix {inherit lib;};
+    darwin = import ./modules/darwin.nix {inherit lib;};
     dendrix = import ./modules/dendrix.nix {inherit lib;};
     systemManager = import ./modules/system-manager.nix {inherit lib;};
     typix = import ./modules/typix.nix {inherit lib;};
