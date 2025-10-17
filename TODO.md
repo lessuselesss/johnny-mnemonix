@@ -1019,6 +1019,39 @@ nix/configuration-types/
 
 ## 💡 Open Ideas
 
+### N Notation for Documentation
+
+**Status**: Partially implemented (versioning.nix uses it)
+
+**Goal**: Use mathematical N notation throughout documentation instead of fixed position names.
+
+**Current** (position-specific):
+- XX.YY (implies exactly 2 positions)
+- XX.YY.ZZ (implies exactly 3 positions)
+
+**Proposed** (extensible):
+- N₁.N₂ (2 components)
+- N₁.N₂.N₃ (3 components)
+- N₁.N₂.N₃...Nₖ (k components, arbitrary depth)
+
+**Benefits**:
+- Emphasizes extensibility (not limited to 2 or 3 levels)
+- More mathematical/formal notation
+- Clearer that each position is "the nth component"
+- Language-agnostic (not tied to English "X, Y, Z")
+
+**Implementation**:
+- ✅ versioning.nix already uses N notation
+- ⏳ Update johnny-decimal.nix comments
+- ⏳ Update classification.nix comments
+- ⏳ Update all CLAUDE.md specification files
+- ⏳ Update root CLAUDE.md
+- ⏳ Update TODO.md examples
+
+**Timeline**: After builders layer complete
+
+---
+
 ### Directory Templating
 - Define templates for different project types
 - Auto-populate new areas with standard structure
