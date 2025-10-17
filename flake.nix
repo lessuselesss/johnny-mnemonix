@@ -338,6 +338,7 @@
         (inputs.std.blockTypes.functions "unit")
         (inputs.std.blockTypes.functions "integration")
         (inputs.std.blockTypes.functions "e2e")
+        (inputs.std.blockTypes.functions "types")
       ];
     };
   in
@@ -355,11 +356,12 @@
         inherit cells;
 
         # Convenience exports for library layers (per-system)
-        # lib.<system>.primitives, lib.<system>.composition, lib.<system>.builders
+        # lib.<system>.primitives, lib.<system>.composition, lib.<system>.builders, lib.<system>.types
         lib = lib.genAttrs ["x86_64-linux" "aarch64-linux" "aarch64-darwin" "x86_64-darwin"] (system: {
           primitives = cells.lib.${system}.primitives or {};
           composition = cells.lib.${system}.composition or {};
           builders = cells.lib.${system}.builders or {};
+          types = cells.lib.${system}.types or {};
         });
 
         # Convenience exports for frameworks (per-system)
@@ -372,6 +374,7 @@
           unit = cells.tests.${system}.unit or {};
           integration = cells.tests.${system}.integration or {};
           e2e = cells.tests.${system}.e2e or {};
+          types = cells.tests.${system}.types or {};
         });
 
         # Convenience exports for examples (per-system)
@@ -412,7 +415,8 @@
         # All checks including tests
         checks = let
           unitTests = cells.tests.${system}.unit or {};
-          testLib = unitTests.testLib or null;
+          typesTests = cells.tests.${system}.types or {};
+          testLib = unitTests.testLib or typesTests.testLib or null;
 
           # Create a check for each test suite
           mkTestCheck = name: testSuite:
@@ -470,6 +474,25 @@
           tests-builders-johnny-decimal = mkTestCheck "builders-johnny-decimal" (unitTests.builders.johnny-decimal or {});
           tests-builders-versioning = mkTestCheck "builders-versioning" (unitTests.builders.versioning or {});
           tests-builders-classification = mkTestCheck "builders-classification" (unitTests.builders.classification or {});
+
+          # Types unit tests
+          tests-types-common-types = mkTestCheck "types-common-types" (typesTests.unit.common-types or {});
+          tests-types-module-types-nixos = mkTestCheck "types-module-types-nixos" (typesTests.unit.module-types-nixos or {});
+          tests-types-module-types-home-manager = mkTestCheck "types-module-types-home-manager" (typesTests.unit.module-types-home-manager or {});
+          tests-types-module-types-jm = mkTestCheck "types-module-types-jm" (typesTests.unit.module-types-jm or {});
+
+          # Types integration tests
+          tests-types-schemas-validate = mkTestCheck "types-schemas-validate" (typesTests.integration.schemas-validate-outputs or {});
+          tests-types-schemas-reject = mkTestCheck "types-schemas-reject" (typesTests.integration.schemas-reject-invalid or {});
+
+          # Types real-world tests
+          tests-types-nixos-community = mkTestCheck "types-nixos-community" (typesTests.real-world.nixos-community or {});
+          tests-types-home-manager-community = mkTestCheck "types-home-manager-community" (typesTests.real-world.home-manager-community or {});
+          tests-types-dendrix-community = mkTestCheck "types-dendrix-community" (typesTests.real-world.dendrix-community or {});
+          tests-types-typix-community = mkTestCheck "types-typix-community" (typesTests.real-world.typix-community or {});
+          tests-types-colmena-community = mkTestCheck "types-colmena-community" (typesTests.real-world.colmena-community or {});
+          tests-types-jm-dogfood = mkTestCheck "types-jm-dogfood" (typesTests.real-world.jm-dogfood or {});
+          tests-types-std-dogfood = mkTestCheck "types-std-dogfood" (typesTests.real-world.std-dogfood or {});
         };
 
         # Development shell
