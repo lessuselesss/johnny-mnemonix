@@ -490,7 +490,6 @@
           tests-types-home-manager-community = mkTestCheck "types-home-manager-community" (typesTests.real-world.home-manager-community or {});
           tests-types-dendrix-community = mkTestCheck "types-dendrix-community" (typesTests.real-world.dendrix-community or {});
           tests-types-typix-community = mkTestCheck "types-typix-community" (typesTests.real-world.typix-community or {});
-          tests-types-colmena-community = mkTestCheck "types-colmena-community" (typesTests.real-world.colmena-community or {});
           tests-types-jm-dogfood = mkTestCheck "types-jm-dogfood" (typesTests.real-world.jm-dogfood or {});
           tests-types-std-dogfood = mkTestCheck "types-std-dogfood" (typesTests.real-world.std-dogfood or {});
         };

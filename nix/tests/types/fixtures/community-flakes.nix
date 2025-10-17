@@ -107,21 +107,12 @@
     hash = "";
   };
 
-  # divnix/hive - std-based project
+  # divnix/hive - std-based NixOS deployment
   hive = fetchFromGitHub {
     owner = "divnix";
     repo = "hive";
     rev = "main";
     hash = "";
-  };
-
-  # Colmena - NixOS deployment tool
-  colmena = fetchFromGitHub {
-    owner = "zhaofengli";
-    repo = "colmena";
-    rev = "main";
-    hash = "";
-    # NOTE: May want to reach out to @zhaofengli
   };
 
   # ===== Dogfooding =====

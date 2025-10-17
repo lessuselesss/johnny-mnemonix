@@ -1,8 +1,8 @@
-# Hive/Colmena Flake Type
+# Hive Flake Type
 #
-# Complete flake type definition for Hive (divnix Colmena): NixOS deployment tool.
+# Complete flake type definition for divnix/hive: std-based NixOS deployment.
 #
-# Based on https://colmena.cli.rs/ and divnix/hive
+# Based on https://github.com/divnix/hive
 
 {lib}: let
   inherit (lib) mkOption types;
@@ -10,56 +10,62 @@ in {
   # ===== Part 1: Module Input Structure =====
 
   moduleInput = {
-    description = "Hive/Colmena NixOS deployment configuration modules";
+    description = "divnix/hive NixOS deployment modules using std cell/block architecture";
     moduleType = types.deferredModule;
     example = ''
-      # Define deployment nodes
-      flake.modules.hive.prod-web01 = {
-        deployment = {
-          targetHost = "web01.example.com";
-          targetPort = 22;
-          tags = [ "production" "web" ];
-        };
-        networking.hostName = "web01";
+      # Define hive cells with deployment targets
+      flake.modules.hive.prod = {
+        # Cell: prod (production environment)
+        cellBlocks = [
+          "web-servers"
+          "databases"
+          "monitoring"
+        ];
 
-        # NixOS configuration for this node
-        services.nginx.enable = true;
+        # Block definitions
+        web-servers = {
+          web01 = {
+            # NixOS configuration for web01
+            networking.hostName = "web01";
+            services.nginx.enable = true;
+          };
+          web02 = {
+            networking.hostName = "web02";
+            services.nginx.enable = true;
+          };
+        };
+
+        databases = {
+          db01 = {
+            networking.hostName = "db01";
+            services.postgresql.enable = true;
+          };
+        };
       };
 
-      flake.modules.hive.staging-app02 = {
-        deployment = {
-          targetHost = "app02.staging.example.com";
-          tags = [ "staging" "app" ];
+      flake.modules.hive.staging = {
+        # Cell: staging environment
+        cellBlocks = [ "apps" ];
+
+        apps = {
+          app01 = {
+            networking.hostName = "app01-staging";
+            services.nginx.enable = true;
+          };
         };
-        networking.hostName = "app02";
       };
     '';
     schema = {
-      nodes = mkOption {
+      cells = mkOption {
         type = types.attrsOf (types.submodule {
           options = {
-            deployment = mkOption {
-              type = types.submodule {
-                options = {
-                  targetHost = mkOption { type = types.nullOr types.str; };
-                  targetPort = mkOption { type = types.nullOr types.port; default = null; };
-                  tags = mkOption { type = types.listOf types.str; default = []; };
-                };
-              };
+            cellBlocks = mkOption {
+              type = types.listOf types.str;
+              description = "List of block names in this cell";
             };
           };
         });
-      };
-      meta = mkOption {
-        type = types.submodule {
-          options = {
-            nixpkgs = mkOption { type = types.raw; };
-            specialArgs = mkOption {
-              type = types.attrsOf types.anything;
-              default = {};
-            };
-          };
-        };
+        description = "Hive deployment cells organized by environment/function";
       };
     };
   };
@@ -71,81 +77,67 @@ in {
     hiveModules = {
       version = 1;
       doc = ''
-        Hive/Colmena deployment node configuration modules.
+        divnix/hive deployment modules using std cell/block architecture.
 
-        Modules define deployment targets and their NixOS configurations.
+        Hive organizes NixOS deployments into cells (environments/functions)
+        and blocks (groups of related hosts).
 
         Example:
           outputs.hiveModules = {
-            prod-web01 = {
-              deployment.targetHost = "web01.example.com";
-              services.nginx.enable = true;
+            prod = {
+              cellBlocks = [ "web-servers" "databases" ];
+              web-servers = {
+                web01 = { services.nginx.enable = true; };
+              };
             };
           };
       '';
       inventory = output: {
-        children = builtins.mapAttrs (nodeName: nodeConfig: {
-          what = "hive deployment node: ${nodeName}";
+        children = builtins.mapAttrs (cellName: cellConfig: {
+          what = "hive cell: ${cellName}";
           evalChecks = {
-            isNode = builtins.isAttrs nodeConfig;
-            hasDeployment = nodeConfig ? deployment;
-            hasValidDeployment =
-              if nodeConfig ? deployment
-              then (nodeConfig.deployment ? targetHost || nodeConfig.deployment ? tags)
+            isCell = builtins.isAttrs cellConfig;
+            hasCellBlocks = cellConfig ? cellBlocks;
+            cellBlocksIsList =
+              if cellConfig ? cellBlocks
+              then builtins.isList cellConfig.cellBlocks
               else false;
-            hasNetworking = nodeConfig ? networking;
-            hasHostname =
-              if nodeConfig ? networking
-              then nodeConfig.networking ? hostName
-              else false;
+            hasValidCellName =
+              let match = builtins.match "[a-z][a-z0-9-]*" cellName;
+              in match != null;
           };
         }) output;
       };
     };
 
-    # Alias for colmenaModules
-    colmenaModules = {
-      version = 1;
-      doc = "Alias for hiveModules";
-      inventory = output: {
-        children = builtins.mapAttrs (name: node: {
-          what = "colmena deployment node";
-          evalChecks = {
-            isNode = builtins.isAttrs node;
-            hasDeployment = node ? deployment;
-          };
-        }) output;
-      };
-    };
-
-    # Schema for complete hive (colmena.nix format)
+    # Schema for complete hive output
     hive = {
       version = 1;
       doc = ''
-        Complete Hive/Colmena deployment configuration.
+        Complete divnix/hive deployment configuration.
+
+        Hive uses std's cell/block architecture to organize deployments.
 
         Example:
           outputs.hive = {
-            meta = {
-              nixpkgs = nixpkgs.legacyPackages.x86_64-linux;
+            cells = {
+              prod = { /* production cell */ };
+              staging = { /* staging cell */ };
             };
-            defaults = { /* shared config */ };
-            node1 = { /* node config */ };
-            node2 = { /* node config */ };
+            colmenaHive = { /* optional: colmena compatibility */ };
           };
       '';
       inventory = output: {
         what = "hive deployment configuration";
         evalChecks = {
-          hasMeta = output ? meta;
+          hasCells = output ? cells;
+          cellsIsAttrs =
+            if output ? cells
+            then builtins.isAttrs output.cells
+            else false;
           hasNodes =
-            let
-              keys = builtins.attrNames output;
-              nodeKeys = builtins.filter (k: k != "meta" && k != "defaults") keys;
-            in builtins.length nodeKeys > 0;
-          metaHasNixpkgs =
-            if output ? meta
-            then output.meta ? nixpkgs
+            if output ? cells
+            then builtins.length (builtins.attrNames output.cells) > 0
             else false;
         };
       };

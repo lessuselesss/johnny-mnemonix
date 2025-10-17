@@ -85,7 +85,6 @@ in {
     # Custom flake types
     dendrix-community = safeImport ./types/real-world/dendrix-community.nix "Dendrix community modules";
     typix-community = safeImport ./types/real-world/typix-community.nix "Typix community projects";
-    colmena-community = safeImport ./types/real-world/colmena-community.nix "Colmena/Hive community deployments";
 
     # Dogfooding
     jm-dogfood = safeImport ./types/real-world/jm-dogfood.nix "Johnny-Mnemonix dogfooding";

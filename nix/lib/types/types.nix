@@ -97,7 +97,6 @@ in {
         stdModules
         stdCells
         hiveModules
-        colmenaModules
         hive;
     };
   };

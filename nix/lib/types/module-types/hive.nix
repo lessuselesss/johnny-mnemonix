@@ -1,16 +1,52 @@
-# Hive/Colmena Module Types
+# Hive Module Types
 #
-# Pure module option types for Hive (divnix Colmena): NixOS deployment tool.
-# Based on https://colmena.cli.rs/ and divnix/hive
+# Pure module option types for divnix/hive: std-based NixOS deployment.
+# Based on https://github.com/divnix/hive
 
 {lib}: {
-  # ===== Hive/Colmena-Specific Types =====
+  # ===== Hive-Specific Types (std-based) =====
 
-  # Deployment node configuration
-  hiveNode = lib.types.submodule {
+  # Hive cell (environment or functional grouping)
+  hiveCell = lib.types.submodule {
     options = {
-      deployment = lib.mkOption {
+      cellBlocks = lib.mkOption {
+        type = lib.types.listOf lib.types.str;
+        description = "List of block names in this cell";
+        example = [ "web-servers" "databases" "monitoring" ];
+      };
+
+      description = lib.mkOption {
+        type = lib.types.nullOr lib.types.str;
+        default = null;
+        description = "Human-readable description of this cell";
+      };
+
+      tags = lib.mkOption {
+        type = lib.types.listOf lib.types.str;
+        default = [];
+        description = "Tags for categorizing cells (e.g., production, staging)";
+      };
+    };
+  };
+
+  # Hive block (group of related hosts)
+  hiveBlock = lib.types.attrsOf (lib.types.submodule {
+    options = {
+      # Standard NixOS options are available here
+      networking = lib.mkOption {
         type = lib.types.submodule {
+          options = {
+            hostName = lib.mkOption {
+              type = lib.types.str;
+              description = "Host name";
+            };
+          };
+        };
+        description = "Networking configuration";
+      };
+
+      deployment = lib.mkOption {
+        type = lib.types.nullOr (lib.types.submodule {
           options = {
             targetHost = lib.mkOption {
               type = lib.types.nullOr lib.types.str;
@@ -29,139 +65,55 @@
               default = "root";
               description = "SSH user";
             };
-
-            tags = lib.mkOption {
-              type = lib.types.listOf lib.types.str;
-              default = [];
-              description = "Tags for selective deployment";
-            };
-
-            keys = lib.mkOption {
-              type = lib.types.attrsOf (lib.types.submodule {
-                options = {
-                  text = lib.mkOption {
-                    type = lib.types.str;
-                    description = "Secret content";
-                  };
-                  destDir = lib.mkOption {
-                    type = lib.types.path;
-                    default = "/run/keys";
-                    description = "Destination directory";
-                  };
-                  user = lib.mkOption {
-                    type = lib.types.str;
-                    default = "root";
-                  };
-                  group = lib.mkOption {
-                    type = lib.types.str;
-                    default = "root";
-                  };
-                  permissions = lib.mkOption {
-                    type = lib.types.str;
-                    default = "0600";
-                  };
-                };
-              });
-              default = {};
-              description = "Deployment keys/secrets";
-            };
           };
-        };
-        default = {};
-        description = "Deployment-specific configuration";
-      };
-
-      networking = lib.mkOption {
-        type = lib.types.submodule {
-          options = {
-            hostName = lib.mkOption {
-              type = lib.types.str;
-              description = "Node hostname";
-            };
-          };
-        };
-        description = "Networking configuration";
+        });
+        default = null;
+        description = "Optional deployment configuration";
       };
 
       tags = lib.mkOption {
         type = lib.types.listOf lib.types.str;
         default = [];
-        description = "Tags for categorizing nodes (e.g., production, staging, web)";
-      };
-
-      description = lib.mkOption {
-        type = lib.types.nullOr lib.types.str;
-        default = null;
-        description = "Human-readable description of this node";
+        description = "Tags for categorizing hosts";
       };
     };
-  };
+  });
 
-  # Complete Colmena configuration
-  colmenaConfig = lib.types.submodule {
+  # Complete Hive configuration
+  hiveConfig = lib.types.submodule {
     options = {
+      cells = lib.mkOption {
+        type = lib.types.attrsOf lib.types.anything;  # Each cell contains blocks
+        description = "Hive cells organized by environment/function";
+      };
+
       meta = lib.mkOption {
-        type = lib.types.submodule {
+        type = lib.types.nullOr (lib.types.submodule {
           options = {
             nixpkgs = lib.mkOption {
               type = lib.types.raw;
               description = "Nixpkgs instance";
             };
 
-            nodeNixpkgs = lib.mkOption {
-              type = lib.types.attrsOf lib.types.raw;
-              default = {};
-              description = "Per-node nixpkgs overrides";
-            };
-
             specialArgs = lib.mkOption {
               type = lib.types.attrsOf lib.types.anything;
               default = {};
-              description = "Extra arguments passed to all nodes";
+              description = "Extra arguments passed to all hosts";
             };
           };
-        };
-        description = "Meta configuration";
-      };
-
-      defaults = lib.mkOption {
-        type = lib.types.attrsOf lib.types.anything;
-        default = {};
-        description = "Default configuration for all nodes";
+        });
+        default = null;
+        description = "Optional meta configuration";
       };
     };
   };
+
+  # Cell name (follows std naming convention)
+  hiveCellName = lib.types.strMatching "[a-z][a-z0-9-]*";
+
+  # Block name (follows std naming convention)
+  hiveBlockName = lib.types.strMatching "[a-z][a-z0-9-]*";
 
   # Deployment tag for selective deployments
   deploymentTag = lib.types.str;
-
-  # Deployment key/secret
-  deploymentKey = lib.types.submodule {
-    options = {
-      text = lib.mkOption {
-        type = lib.types.str;
-        description = "Secret content";
-      };
-
-      destDir = lib.mkOption {
-        type = lib.types.path;
-        default = "/run/keys";
-      };
-
-      user = lib.mkOption {
-        type = lib.types.str;
-        default = "root";
-      };
-
-      group = lib.mkOption {
-        type = lib.types.str;
-        default = "root";
-      };
-
-      permissions = lib.mkOption {
-        type = lib.types.str;
-        default = "0600";
-      };
-    };
-  };
 }
