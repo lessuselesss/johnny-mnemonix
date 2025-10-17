@@ -79,22 +79,26 @@
     grouped;
 
   # Merge multiple modules into a single dendrix aspect module
-  # Returns a NixOS module (function) that imports all the modules
+  # Returns a flake-parts module that exports a nixosModule
   mergeModules = modules: aspectName: jdStructure:
-    {
-      config,
-      lib,
-      pkgs,
-      ...
-    }: {
-      # Import all the aspect's modules
-      imports = modules;
+    # This is a flake-parts module
+    {inputs, ...}: {
+      # Export the aspect as a nixosModule
+      flake.nixosModules.${aspectName} = {
+        config,
+        lib,
+        pkgs,
+        ...
+      }: {
+        # Import all the aspect's modules
+        imports = modules;
 
-      # Add metadata about the aspect
-      _module.args = {
-        # Preserve JD structure
-        jdMeta = jdStructure;
-        aspectName = aspectName;
+        # Add metadata about the aspect
+        _module.args = {
+          # Preserve JD structure
+          jdMeta = jdStructure;
+          aspectName = aspectName;
+        };
       };
     };
 
