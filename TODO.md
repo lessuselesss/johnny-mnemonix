@@ -6,38 +6,38 @@
 
 ## 🎯 Current Status: Library Implementation (TDD)
 
-### ✅ Completed: 80/100 tests (80%)
+### ✅ Completed: 100/100 foundation tests (100%) 🎉
 
-**Primitives Layer (100% - 55/55 tests)**:
+**Primitives Layer (100% - 55/55 tests)** ✅:
 - ✅ `number-systems.nix` - Base conversion operations (20 tests)
 - ✅ `fields.nix` - Constrained fields with width/padding (15 tests)
 - ✅ `constraints.nix` - Validation predicates (10 tests)
 - ✅ `templates.nix` - Template parsing and rendering (10 tests)
 
-**Composition Layer (56% - 25/45 tests)**:
+**Composition Layer (100% - 45/45 tests)** ✅:
 - ✅ `identifiers.nix` - Multi-field identifier composition (15 tests)
 - ✅ `ranges.nix` - Range operations and containment (10 tests)
-- ⏳ `hierarchies.nix` - Multi-level hierarchy navigation (12 tests) - **NEXT**
-- ⏳ `validators.nix` - Constraint composition (8 tests)
+- ✅ `hierarchies.nix` - Multi-level hierarchy navigation (12 tests)
+- ✅ `validators.nix` - Constraint composition (8 tests)
 
-**Builders Layer (0% - 0/26 tests)**:
+**Builders Layer (0% - 0/26 tests)** - **NEXT**:
 - ⏳ `johnny-decimal.nix` - Pre-built JD system (10 tests)
 - ⏳ `versioning.nix` - SemVer builder (8 tests)
 - ⏳ `classification.nix` - Custom hierarchy builder (8 tests)
 
 ### 🎯 Next Steps (Short Term)
 
-1. **Complete Composition Layer** (2 components, 20 tests)
-   - Implement `hierarchies.nix` (12 tests)
-   - Implement `validators.nix` (8 tests)
-
-2. **Implement Builders Layer** (3 components, 26 tests)
+1. **Implement Builders Layer** (3 components, 26 tests) - **IN PROGRESS**
    - High-level constructors for common patterns
    - Johnny Decimal, SemVer, Classification builders
 
-3. **Integration Tests**
+2. **Integration Tests**
    - End-to-end system tests
    - Cross-layer integration verification
+
+3. **Library Complete!**
+   - Total: 126+ tests (100 unit + 26 builders + integration/e2e)
+   - Ready for Phase 2: Refactor johnny-mnemonix
 
 ---
 
@@ -470,6 +470,301 @@ Works across all configuration types:
 
 ---
 
+### 9. `fuse` - FUSE Filesystem Integration
+
+**Purpose**: Virtual filesystem layer providing dynamic, multi-faceted views of JD-organized content
+
+**Base Directory**: Varies by use case - can mount at any path
+
+**Status**: **Exploratory** - All options open for investigation
+
+**Overview**:
+
+FUSE (Filesystem in Userspace) integration could provide powerful virtual filesystem capabilities for Johnny Decimal structures. This is a broad exploration area with multiple possible directions, all worth investigating as the project matures.
+
+**Potential Use Cases**:
+
+#### 1. **Virtual Views** - Same Content, Multiple Organizations
+Mount points that present the same content organized in different ways:
+```
+~/JD/                          # Physical JD structure
+~/JD-by-date/                  # Virtual: same files organized by date
+~/JD-by-type/                  # Virtual: same files organized by file type
+~/JD-by-project/               # Virtual: same files organized by project tags
+~/JD-by-tag/work/              # Virtual: all work-tagged files
+```
+
+Each mount point shows the same underlying files but through different organizational lenses.
+
+#### 2. **Auto-categorization** - Smart File Organization
+Filesystem that automatically suggests or applies JD category placement:
+```
+~/JD-smart/                    # FUSE mount
+# User creates file: ~/JD-smart/my-document.pdf
+# System analyzes content/metadata
+# Suggests: "Move to 20-29 Documents/20 Reports/20.03 Quarterly?"
+# Or auto-places based on learned patterns
+```
+
+Features:
+- Content analysis (text extraction, metadata)
+- Machine learning categorization
+- Rule-based placement (file type, name patterns, metadata)
+- Interactive prompts for ambiguous cases
+- Learn from user corrections
+
+#### 3. **Union/Overlay** - Unified View of Distributed Content
+Merge multiple storage locations into single JD hierarchy:
+```
+~/JD-unified/                  # FUSE mount combining:
+  ├── local:       ~/Documents/10-19 Projects/
+  ├── git repos:   Various cloned repositories
+  ├── remote SSH:  user@server:/data/projects/
+  ├── cloud S3:    s3://my-bucket/work/
+  └── archives:    /mnt/backup/old-projects/
+
+# All appear as unified JD structure
+# Transparent access regardless of actual location
+# Write operations route to appropriate backend
+```
+
+Sources:
+- Local filesystem paths
+- Git repositories (multiple remotes)
+- SSH/SFTP remote mounts
+- Cloud storage (S3, GCS, Azure, WebDAV)
+- Archive files (tar, zip, etc.)
+
+#### 4. **Enhanced Navigation** - JD-Aware Filesystem Semantics
+Filesystem that understands JD structure and provides smart navigation:
+
+**Special Virtual Directories**:
+```
+~/JD/.search/keyword/          # Full-text search results
+~/JD/.recent/                  # Recently modified files
+~/JD/.uncommitted/             # Git files with uncommitted changes
+~/JD/.tags/work/               # All items tagged "work"
+~/JD/.type/pdf/                # All PDF files
+~/JD/.breadcrumb/10/11/11.05/  # Breadcrumb navigation
+```
+
+**Smart Navigation Features**:
+- Path completion understands JD hierarchy
+- Breadcrumb-style navigation
+- Symlinks to related items
+- Automatic index generation at each level
+- README.md auto-generated with hierarchy info
+
+#### 5. **Caching & Performance Layer**
+FUSE layer that caches remote/slow sources:
+- Cache remote files locally
+- Prefetch frequently accessed items
+- Lazy loading of large hierarchies
+- Background sync of changes
+- Conflict resolution for multi-source edits
+
+**Customizable Access Modes**:
+
+The FUSE filesystem should support configurable access semantics:
+
+1. **Read-only View** (Safest):
+   - Virtual views are read-only
+   - No modifications propagate to underlying storage
+   - Good for exploration, search, alternate views
+
+2. **Read-write with Propagation**:
+   - Changes in FUSE mount propagate to underlying storage
+   - Maintains JD structure constraints
+   - Validates writes against hierarchy rules
+   - Atomic operations with rollback
+
+3. **Hybrid Mode**:
+   - JD hierarchy structure is read-only
+   - Files within valid categories can be created/modified
+   - Prevents structure corruption while allowing content changes
+
+**Example Configuration** (Aspirational):
+
+```nix
+fuse = {
+  enable = true;
+
+  mounts = {
+    # Virtual date-based view (read-only)
+    by-date = {
+      mountPoint = "$HOME/JD-by-date";
+      source = "$HOME/Documents";  # Physical JD structure
+      view = "date";  # Reorganize by file modification date
+      readOnly = true;
+    };
+
+    # Unified multi-source view (read-write)
+    unified = {
+      mountPoint = "$HOME/JD-all";
+      sources = [
+        { type = "local"; path = "$HOME/Documents"; }
+        { type = "git"; repos = [ "~/Projects/repo1" "~/Projects/repo2" ]; }
+        { type = "ssh"; host = "server"; path = "/data/work"; }
+        { type = "s3"; bucket = "my-work-bucket"; prefix = "jd/"; }
+      ];
+      readOnly = false;
+      conflictResolution = "prompt";  # or "local-wins", "remote-wins"
+    };
+
+    # Smart categorization assistant (hybrid)
+    smart = {
+      mountPoint = "$HOME/JD-smart";
+      source = "$HOME/Documents";
+      features = {
+        autoCategorization = {
+          enable = true;
+          method = "ml";  # or "rules", "interactive"
+          confidence = 0.8;  # Auto-place if confidence > 80%
+        };
+        contentAnalysis = true;
+        metadataExtraction = true;
+      };
+      readOnly = false;
+      structureReadOnly = true;  # Can't modify hierarchy
+    };
+
+    # Search and filter views
+    search = {
+      mountPoint = "$HOME/JD-search";
+      source = "$HOME/Documents";
+      features = {
+        fullTextSearch = true;
+        tagFiltering = true;
+        typeFiltering = true;
+        dateFiltering = true;
+        gitStatusFiltering = true;
+      };
+      readOnly = true;
+      indexing = {
+        enable = true;
+        interval = 300;  # Reindex every 5 minutes
+        fullTextEngine = "ripgrep";  # or "tantivy", "meilisearch"
+      };
+    };
+  };
+
+  # Global FUSE options
+  options = {
+    # FUSE library (implementation choice)
+    library = "fuser";  # Rust: fuser, or "bazil-fuse" (Go), "fusepy" (Python)
+
+    # Performance
+    caching = {
+      enable = true;
+      size = "1GB";
+      ttl = 3600;  # Cache entries valid for 1 hour
+    };
+
+    # Logging
+    logging = {
+      level = "info";  # or "debug", "warn", "error"
+      path = "$HOME/.local/state/johnny-mnemonix/fuse.log";
+    };
+
+    # Safety
+    safeMode = true;  # Extra validation, no destructive ops
+    backups = true;   # Backup before write operations
+  };
+};
+```
+
+**Implementation Considerations**:
+
+**Technology Stack** (To be decided):
+- **Rust** (fuser crate): Performance, safety, modern
+- **Go** (bazil/fuse): Good concurrency, simpler than Rust
+- **Python** (fusepy): Rapid prototyping, easier to modify
+- **Nix-native**: Pure Nix implementation (challenging but interesting)
+
+**Architecture Questions** (To be resolved):
+
+1. **Integration Approach**:
+   - New configuration type in `nix/configuration-types/fuse.nix`?
+   - Separate divnix/std cell (`nix/fuse/`)?
+   - Extension to existing home-manager module?
+   - Standalone tool/service with Nix packaging?
+
+2. **Systemd Integration**:
+   - User service for automatic mounting?
+   - Socket activation?
+   - Dependency management (mount after base dirs created)?
+
+3. **Performance Strategy**:
+   - How to handle large hierarchies (1000s of items)?
+   - Caching strategy (local, in-memory, persistent)?
+   - Indexing approach (real-time, periodic, on-demand)?
+   - Invalidation triggers?
+
+4. **Conflict Resolution**:
+   - Multiple sources with same JD id?
+   - Concurrent modifications?
+   - Offline/online sync?
+   - User vs. auto-categorization conflicts?
+
+5. **Security & Safety**:
+   - Permission handling across sources?
+   - Prevent accidental data loss?
+   - Validation before propagating writes?
+   - Rollback/undo mechanisms?
+
+**Design Experiments to Run**:
+
+1. **Proof of Concept**: Simple read-only FUSE mount of existing JD structure
+2. **Date View Prototype**: Reorganize by modification date
+3. **Search Integration**: Dynamic directories for search results
+4. **Git Integration**: Virtual dirs showing git status (.uncommitted/, .branches/)
+5. **Union FS Test**: Combine local + one git repo
+6. **Auto-categorization**: Rule-based file placement based on extension/name
+
+**Related Technologies to Investigate**:
+
+- **OverlayFS/UnionFS**: Linux kernel union filesystem capabilities
+- **mergerfs**: User-space union filesystem (could be wrapped/extended)
+- **rclone mount**: Already handles remote sources, could be integrated
+- **git-fuse**: Existing FUSE filesystems for git repositories
+- **TagFS**: Tag-based filesystem organization (similar concept)
+- **Full-text engines**: ripgrep, tantivy, meilisearch for search features
+
+**Potential Risks & Challenges**:
+
+1. **Complexity**: FUSE development is non-trivial, especially for write operations
+2. **Performance**: Virtual filesystems can be slow without good caching
+3. **Stability**: Bugs in FUSE can cause hangs, crashes, data loss
+4. **Portability**: FUSE behavior varies across Linux, macOS, Windows
+5. **Maintenance**: Requires ongoing support for kernel/FUSE API changes
+6. **User Expectations**: Virtual filesystems can be confusing if not intuitive
+
+**Success Criteria** (When to pursue this):
+
+- Core library fully stable (Phase 1 complete)
+- Multiple configuration types working well (Phase 4 complete)
+- Real user demand for virtual views / multi-source integration
+- Team member with FUSE expertise or willingness to learn
+- Clear, focused use case to start with (not trying to do everything)
+
+**Recommended Approach**:
+
+1. **Start small**: Read-only, single-source, simple view (by-date or by-type)
+2. **Validate usefulness**: Does it solve real problems for users?
+3. **Iterate**: Add features based on actual usage patterns
+4. **Consider alternatives**: Could some features be shell scripts / utilities instead?
+5. **Community input**: Gather feedback before heavy investment
+
+**Timeline**: Phase 7+ (Exploratory - after core ecosystem mature, if demand exists)
+
+**Dependencies**:
+- Phases 1-4 complete (library + core types working)
+- Real-world usage data to validate use cases
+- FUSE expertise acquired or available
+- Clear primary use case identified
+
+---
+
 ## 🏗️ Implementation Architecture
 
 ### Layer 4: Configuration Types (New)
@@ -626,6 +921,23 @@ nix/configuration-types/
 - Multi-user / team support features
 
 **Timeline**: After core ecosystem stable
+
+---
+
+### Phase 7: FUSE Integration (Exploratory)
+- `fuse` (virtual filesystem layer)
+- Prototype: Read-only virtual views
+- Experiment: Multi-source union filesystem
+- Explore: Auto-categorization and smart navigation
+- Evaluate: User demand and feasibility
+
+**Timeline**: Post-maturity - if real demand exists and use cases validated
+
+**Prerequisites**:
+- Core library stable (Phase 1 ✓)
+- Multiple config types proven (Phase 4)
+- FUSE expertise available
+- Clear primary use case identified
 
 ---
 
