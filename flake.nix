@@ -409,37 +409,68 @@
         system,
         ...
       }: {
-        # Simple test that evaluates the module
-        checks.moduleEval = pkgs.runCommand "test-johnny-mnemonix" {} ''
-          echo "Testing module evaluation..."
-          ${pkgs.nix}/bin/nix-instantiate --eval --expr '
-            with import ${inputs.nixpkgs} { system = "${system}"; };
-            let
-              hmLib = import ${inputs.home-manager}/modules/lib/stdlib-extended.nix lib;
-            in
-            lib.evalModules {
-              modules = [
-                { _module.args = { inherit pkgs lib; }; }
-                ${./modules/johnny-mnemonix.nix}
-                {
-                  config = {
-                    home = {
-                      username = "test";
-                      homeDirectory = "/home/test";
-                      stateVersion = "23.11";
+        # All checks including tests
+        checks = let
+          unitTests = cells.tests.${system}.unit or {};
+          testLib = unitTests.testLib or null;
+
+          # Create a check for each test suite
+          mkTestCheck = name: testSuite:
+            if testLib != null && testSuite != {}
+            then testLib.runTests name testSuite
+            else pkgs.runCommand "test-${name}-skipped" {} ''
+              echo "Test suite ${name} skipped (not implemented yet)" > $out
+            '';
+        in {
+          # Module evaluation test
+          moduleEval = pkgs.runCommand "test-johnny-mnemonix" {} ''
+            echo "Testing module evaluation..."
+            ${pkgs.nix}/bin/nix-instantiate --eval --expr '
+              with import ${inputs.nixpkgs} { system = "${system}"; };
+              let
+                hmLib = import ${inputs.home-manager}/modules/lib/stdlib-extended.nix lib;
+              in
+              lib.evalModules {
+                modules = [
+                  { _module.args = { inherit pkgs lib; }; }
+                  ${./modules/johnny-mnemonix.nix}
+                  {
+                    config = {
+                      home = {
+                        username = "test";
+                        homeDirectory = "/home/test";
+                        stateVersion = "23.11";
+                      };
+                      johnny-mnemonix = {
+                        enable = true;
+                        baseDir = "/tmp/test";
+                        spacer = " ";
+                        areas = {};
+                      };
                     };
-                    johnny-mnemonix = {
-                      enable = true;
-                      baseDir = "/tmp/test";
-                      spacer = " ";
-                      areas = {};
-                    };
-                  };
-                }
-              ];
-            }
-          ' > $out
-        '';
+                  }
+                ];
+              }
+            ' > $out
+          '';
+
+          # Primitives tests
+          tests-primitives-number-systems = mkTestCheck "primitives-number-systems" (unitTests.primitives.number-systems or {});
+          tests-primitives-fields = mkTestCheck "primitives-fields" (unitTests.primitives.fields or {});
+          tests-primitives-constraints = mkTestCheck "primitives-constraints" (unitTests.primitives.constraints or {});
+          tests-primitives-templates = mkTestCheck "primitives-templates" (unitTests.primitives.templates or {});
+
+          # Composition tests
+          tests-composition-identifiers = mkTestCheck "composition-identifiers" (unitTests.composition.identifiers or {});
+          tests-composition-ranges = mkTestCheck "composition-ranges" (unitTests.composition.ranges or {});
+          tests-composition-hierarchies = mkTestCheck "composition-hierarchies" (unitTests.composition.hierarchies or {});
+          tests-composition-validators = mkTestCheck "composition-validators" (unitTests.composition.validators or {});
+
+          # Builder tests
+          tests-builders-johnny-decimal = mkTestCheck "builders-johnny-decimal" (unitTests.builders.johnny-decimal or {});
+          tests-builders-versioning = mkTestCheck "builders-versioning" (unitTests.builders.versioning or {});
+          tests-builders-classification = mkTestCheck "builders-classification" (unitTests.builders.classification or {});
+        };
 
         # Development shell
         devShells.default = pkgs.mkShell {
