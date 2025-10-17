@@ -188,6 +188,175 @@ nix eval --json 'github:user/config#contents.excludingOutputPaths' \
 - Maps systems to GitHub Actions runners
 - **Use in unitype**: CI/CD integration for testing transformed flakes
 
+#### call-flake Integration
+
+**Source**: [divnix/call-flake](https://github.com/divnix/call-flake)
+**Purpose**: Dynamic flake evaluation for extracting real configurations
+
+**Available Helpers**:
+```nix
+lib.unitype.helpers.callFlake = {
+  # Evaluate flake from URL
+  evalFlake = flakeUrl: evaluatedFlake;
+
+  # Evaluate from lock file with overrides
+  evalFlakeFromLock = { lockFileStr, overrides }: evaluatedFlake;
+
+  # Extract nixosConfigurations from any flake
+  extractNixosConfigurations = flakeUrl: { hostname = config; ... };
+  extractNixosConfig = flakeUrl: hostname: nixosConfiguration;
+
+  # Extract homeConfigurations
+  extractHomeConfigurations = flakeUrl: { username = config; ... };
+  extractHomeConfig = flakeUrl: username: homeConfiguration;
+
+  # Extract darwinConfigurations
+  extractDarwinConfigurations = flakeUrl: { hostname = config; ... };
+
+  # Extract all configuration types
+  extractAllConfigurations = flakeUrl: { nixos, home, darwin };
+
+  # Get flake metadata
+  getFlakeMetadata = flakeUrl: { description, inputs, outputs, sourceInfo };
+
+  # Extract module list from configuration
+  extractConfigModules = nixosConfig: modules;
+
+  # Raw call-flake access
+  raw = call-flake;
+};
+```
+
+**Use Cases**:
+- **Extract real configs** from any flake for transformation
+- Load dustinlyons/nixos-config and transform garfield to dendrix
+- Batch transform entire flakes (all nixosConfigurations → dendrix)
+- Auto-detect and transform multiple config types
+- Get actual module lists for aspect classification
+
+**Example: Transform Real Config**:
+```nix
+# Extract and transform dustinlyons/nixos-config garfield
+let
+  helpers = lib.unitype.helpers.callFlake;
+
+  # 1. Extract the real garfield configuration
+  garfieldConfig = helpers.extractNixosConfig
+    "github:dustinlyons/nixos-config"
+    "garfield";
+
+  # 2. Encode to IR
+  ir = lib.unitype.encoders.nixos.encode garfieldConfig;
+
+  # 3. Decode to dendrix
+  dendrix = lib.unitype.decoders.dendrix.decode ir;
+in
+  dendrix
+```
+
+This solves the **real config extraction** problem - no more mock data!
+
+#### nosys Integration
+
+**Source**: [divnix/nosys](https://github.com/divnix/nosys)
+**Purpose**: System-agnostic flake output generation
+
+**Available Helpers**:
+```nix
+lib.unitype.helpers.nosys = {
+  # Wrap outputs to be system-agnostic
+  mkSystemAgnosticFlake = { systems, outputs, pkgsConfig }: flake;
+
+  # Create system-independent library output
+  mkLibOutput = libAttrs: { _lib = libAttrs; };
+
+  # Create regular outputs (will be system-distributed)
+  mkOutputs = outputs: outputs;
+
+  # Convert IR to nosys-compatible outputs
+  irToNosysOutputs = ir: { _meta, packages, apps, nixosModules };
+
+  # Combine decoder with nosys
+  mkFlakeWithNosys = ir: decoderFn: flake;
+
+  # Raw nosys access
+  raw = nosys;
+};
+```
+
+**Use Cases**:
+- Simplify decoder output generation (no per-system boilerplate)
+- Create system-independent metadata outputs
+- Auto-generate system variants from single definition
+- Reduce complexity in transformed flakes
+
+**Example: Decoder with nosys**:
+```nix
+{ lib }: {
+  decode = ir:
+    let
+      nosys = lib.unitype.helpers.nosys;
+    in
+      nosys.mkSystemAgnosticFlake {
+        systems = [ir.meta.system];
+        outputs = {
+          # Define once, nosys creates system variants
+          nixosModules.${ir.id} = /* ... */;
+        };
+      };
+}
+```
+
+#### incl Integration
+
+**Source**: [divnix/incl](https://github.com/divnix/incl)
+**Purpose**: File filtering with inclusion semantics
+
+**Available Helpers**:
+```nix
+lib.unitype.helpers.incl = {
+  # Filter source to include only specified paths
+  filterSource = src: includes: filteredSrc;
+
+  # Filter with debug output
+  filterSourceDebug = src: includes: filteredSrc;
+
+  # Filter based on IR metadata
+  filterFromIR = ir: src: filteredSrc;
+
+  # Filter for aspect-organized output
+  filterForAspects = src: aspects: filteredSrc;
+
+  # Filter for transformed flake output
+  filterForTransformedOutput = src: { modules, includeFlake, includeDocs, extraPaths }: filteredSrc;
+
+  # Include only .nix files from directory
+  includeNixFiles = src: dir: filteredSrc;
+
+  # Raw incl access
+  raw = incl;
+};
+```
+
+**Use Cases**:
+- Include only relevant files in transformed output
+- Filter generated flake sources before writing
+- Selective module inclusion
+- Clean output directories
+
+**Example: Filter transformed output**:
+```nix
+let
+  incl = lib.unitype.helpers.incl;
+  outputSrc = ./dendrix-output;
+in
+  incl.filterForTransformedOutput outputSrc {
+    modules = ["boot" "networking"];
+    includeFlake = true;
+    includeDocs = true;
+  }
+```
+
 #### Helper Composition Pattern
 
 Helpers are **lazily loaded** - they're only activated when encoders/decoders need them:
@@ -201,6 +370,19 @@ Helpers are **lazily loaded** - they're only activated when encoders/decoders ne
       mkMultiSystem = lib.unitype.helpers.flakeUtils.mkMultiSystemOutputs;
     in
       mkMultiSystem ir (decoder: /* transform IR to outputs */);
+}
+```
+
+**Example: Encoder using call-flake helper**:
+```nix
+# Transform external flake to IR
+{ lib }: {
+  encodeFromFlake = flakeUrl: hostname:
+    let
+      helpers = lib.unitype.helpers.callFlake;
+      config = helpers.extractNixosConfig flakeUrl hostname;
+    in
+      encode config;  # Use regular encode logic
 }
 ```
 

@@ -27,6 +27,15 @@
       url = "github:gytis-ivaskevicius/flake-utils-plus";
       inputs.flake-utils.follows = "flake-utils";
     };
+    call-flake = {
+      url = "github:divnix/call-flake";
+    };
+    nosys = {
+      url = "github:divnix/nosys";
+    };
+    incl = {
+      url = "github:divnix/incl";
+    };
   };
 
   outputs = inputs @ {flake-parts, ...}: let

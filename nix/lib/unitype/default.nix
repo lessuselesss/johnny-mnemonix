@@ -34,6 +34,27 @@
     #   flake-utils-plus = inputs.flake-utils-plus;
     # };
 
+    # call-flake integration (dynamic flake evaluation, config extraction)
+    # Note: This requires call-flake input to be available
+    # call-flake = import ./helpers/call-flake.nix {
+    #   inherit lib;
+    #   call-flake = inputs.call-flake;
+    # };
+
+    # nosys integration (system-agnostic flake outputs)
+    # Note: This requires nosys input to be available
+    # nosys = import ./helpers/nosys.nix {
+    #   inherit lib;
+    #   nosys = inputs.nosys;
+    # };
+
+    # incl integration (file filtering with inclusion semantics)
+    # Note: This requires incl input to be available
+    # incl = import ./helpers/incl.nix {
+    #   inherit lib;
+    #   incl = inputs.incl;
+    # };
+
     # Helpers will be activated when encoders/decoders receive inputs
     # For now, they're defined but not loaded to avoid requiring inputs
   };
