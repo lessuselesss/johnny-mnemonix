@@ -39,6 +39,10 @@
     mission-control = {
       url = "github:Platonic-Systems/mission-control";
     };
+    treefmt-nix = {
+      url = "github:numtide/treefmt-nix";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
   };
 
   outputs = inputs @ {flake-parts, ...}: let
@@ -378,6 +382,7 @@
       imports =
         [
           inputs.mission-control.flakeModule
+          inputs.treefmt-nix.flakeModule
         ]
         ++ (map (m: m.path) allModuleFiles);
 
@@ -541,6 +546,33 @@
           tests-unitype-integration-transform-to-dendrix = mkTestCheck "unitype-integration-transform-to-dendrix" ((cells.tests.${system}.unitype or {}).integration.transformToDendrix or {});
         };
 
+        # Treefmt - unified formatting for all file types
+        treefmt = {
+          # Identify project root
+          projectRootFile = ".git/config";
+
+          # Configure formatters for different file types
+          programs = {
+            # Nix files
+            alejandra.enable = true;
+
+            # Markdown files
+            mdformat.enable = true;
+
+            # JSON files
+            prettier = {
+              enable = true;
+              includes = ["*.json"];
+            };
+          };
+
+          # Exclude generated and external files
+          settings.formatter.alejandra.excludes = [
+            "flake.lock"
+            "*.lock"
+          ];
+        };
+
         # Mission-control scripts - compose helpers for transformation workflows
         mission-control.scripts = {
           # Category: Transform - Compose call-flake + encoders + decoders
@@ -683,9 +715,9 @@
           };
 
           fmt = {
-            description = "Format all Nix files";
+            description = "Format all project files (Nix, Markdown, JSON)";
             exec = ''
-              ${pkgs.alejandra}/bin/alejandra .
+              ${config.treefmt.build.wrapper}/bin/treefmt
             '';
             category = "Development";
           };
@@ -695,12 +727,11 @@
         devShells.default = pkgs.mkShell {
           buildInputs = with pkgs; [
             git
-            nixpkgs-fmt
             statix
             deadnix
             pre-commit
-            alejandra
             jq
+            config.treefmt.build.wrapper  # Unified formatter
           ];
           shellHook = ''
             pre-commit install

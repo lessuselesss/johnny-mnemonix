@@ -22,6 +22,7 @@ nix develop
 ## Script Categories
 
 ### Transform
+
 **Compose call-flake + encoders + decoders for complete transformation pipelines**
 
 - `, transform-to-dendrix` - Transform nixosConfiguration to dendrix aspect modules
@@ -29,6 +30,7 @@ nix develop
   - Output: `./dendrix-output/` with auto-loading flake.nix
 
 ### Inspect
+
 **Analyze flakes using call-flake and nix eval**
 
 - `, inspect-flake <flake-url>` - Inspect a flake's configurations
@@ -36,17 +38,21 @@ nix develop
   - Shows: nixosConfigurations, homeConfigurations, metadata
 
 ### Extract
+
 **Extract configuration data from any flake**
 
 - `, extract-nixos-configs <flake-url>` - List all nixosConfigurations
+
   - Example: `, extract-nixos-configs github:dustinlyons/nixos-config`
   - Output: List of configuration names (garfield, aarch64-linux, etc.)
 
 - `, extract-config-details <flake-url> <config-name>` - Get config details
+
   - Example: `, extract-config-details github:dustinlyons/nixos-config garfield`
   - Output: Hostname, system architecture, module count
 
 ### Generate
+
 **Create aspect modules and classifications**
 
 - `, generate-aspect-list` - Analyze config for aspects
@@ -54,6 +60,7 @@ nix develop
   - Output: List of detected aspects (boot, networking, graphics, etc.)
 
 ### Test
+
 **Test transformation pipelines**
 
 - `, test-transformation` - Test transformation with mock data
@@ -61,19 +68,23 @@ nix develop
   - Output: List of generated aspects
 
 ### Helpers
+
 **Documentation and reference**
 
 - `, list-helpers` - Show all available unitype helpers
   - Lists: flake-utils, flake-utils-plus, call-flake, nosys, incl APIs
 
 ### Development
+
 **Development workflow utilities**
 
 - `, run-tests` - Run all unitype tests
+
   - Executes: `nix flake check --print-build-logs --keep-going`
 
-- `, fmt` - Format all Nix files
-  - Uses: alejandra formatter
+- `, fmt` - Format all project files (Nix, Markdown, JSON)
+
+  - Uses: treefmt (alejandra + mdformat + prettier)
 
 ## Helper Composition Examples
 
@@ -123,9 +134,9 @@ done
 Mission-control scripts are defined in `flake.nix` under `mission-control.scripts`. Each script can:
 
 1. **Call helper functions**: Access unitype helpers via flake lib
-2. **Compose pipelines**: Chain extract → encode → decode → generate
-3. **Use Nix eval**: Run arbitrary Nix expressions for complex logic
-4. **Wrap apps**: Call existing apps like `inspect-flake` and `transform-to-dendrix`
+1. **Compose pipelines**: Chain extract → encode → decode → generate
+1. **Use Nix eval**: Run arbitrary Nix expressions for complex logic
+1. **Wrap apps**: Call existing apps like `inspect-flake` and `transform-to-dendrix`
 
 Example custom script:
 
@@ -154,10 +165,13 @@ my-custom-transform = {
 ## Benefits
 
 ### 1. Discoverable Workflows
+
 No need to remember complex `nix run` or `nix eval` commands - scripts are listed in the dev shell welcome banner.
 
 ### 2. Composable by Default
+
 Scripts compose helpers from:
+
 - flake-utils (multi-system)
 - flake-utils-plus (flake construction)
 - call-flake (config extraction)
@@ -165,9 +179,11 @@ Scripts compose helpers from:
 - incl (file filtering)
 
 ### 3. Executable Documentation
+
 Scripts serve as living examples of how to use the helpers together.
 
 ### 4. Development Velocity
+
 Common workflows become one-liners: `, transform-to-dendrix` instead of long nix commands.
 
 ## Architecture
@@ -198,6 +214,6 @@ Mission Control Scripts
 - **Apps**: See `nix/apps/` for transformation apps
 - **Mission Control**: https://github.com/Platonic-Systems/mission-control
 
----
+______________________________________________________________________
 
 **Tip**: Run `, list-helpers` anytime to see available composition functions!

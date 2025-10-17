@@ -4,7 +4,6 @@
 # a canonical intermediate representation (IR).
 #
 # Instead of N² transformations, we implement 2N (N encoders + N decoders).
-
 {lib}: let
   # Need to make lib.unitype available for encoders/decoders to use
   # This creates a circular dependency, but it's okay because Nix is lazy
@@ -13,9 +12,11 @@
   };
 
   # Extend lib with unitype for encoder/decoder access
-  libWithUnitype = lib // {
-    unitype = unitype;
-  };
+  libWithUnitype =
+    lib
+    // {
+      unitype = unitype;
+    };
 
   # Helpers - Composable utilities from external libraries
   # These are available to encoders/decoders via lib.unitype.helpers
