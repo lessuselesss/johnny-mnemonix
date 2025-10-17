@@ -16,6 +16,10 @@
       url = "github:loqusion/typix";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+    nixos-generators = {
+      url = "github:nix-community/nixos-generators";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
   };
 
   outputs = inputs @ {flake-parts, ...}: let
@@ -327,6 +331,7 @@
         (inputs.std.blockTypes.functions "primitives")
         (inputs.std.blockTypes.functions "composition")
         (inputs.std.blockTypes.functions "builders")
+        (inputs.std.blockTypes.functions "unitype")
 
         # Framework cells
         (inputs.std.blockTypes.functions "configs")
@@ -334,11 +339,15 @@
         # Config cells
         (inputs.std.blockTypes.functions "modules")
 
+        # Apps cells
+        (inputs.std.blockTypes.runnables "runnables")
+
         # Test cells
         (inputs.std.blockTypes.functions "unit")
         (inputs.std.blockTypes.functions "integration")
         (inputs.std.blockTypes.functions "e2e")
         (inputs.std.blockTypes.functions "types")
+        (inputs.std.blockTypes.functions "unitype")
       ];
     };
   in
@@ -356,12 +365,13 @@
         inherit cells;
 
         # Convenience exports for library layers (per-system)
-        # lib.<system>.primitives, lib.<system>.composition, lib.<system>.builders, lib.<system>.types
+        # lib.<system>.primitives, lib.<system>.composition, lib.<system>.builders, lib.<system>.types, lib.<system>.unitype
         lib = lib.genAttrs ["x86_64-linux" "aarch64-linux" "aarch64-darwin" "x86_64-darwin"] (system: {
           primitives = cells.lib.${system}.primitives or {};
           composition = cells.lib.${system}.composition or {};
           builders = cells.lib.${system}.builders or {};
           types = cells.lib.${system}.types or {};
+          unitype = cells.lib.${system}.unitype or {};
         });
 
         # Convenience exports for frameworks (per-system)
@@ -412,11 +422,15 @@
         system,
         ...
       }: {
+        # Apps from cells
+        apps = cells.apps.${system}.runnables or {};
+
         # All checks including tests
         checks = let
           unitTests = cells.tests.${system}.unit or {};
           typesTests = cells.tests.${system}.types or {};
-          testLib = unitTests.testLib or typesTests.testLib or null;
+          unitypeTests = cells.tests.${system}.unitype or {};
+          testLib = unitTests.testLib or typesTests.testLib or unitypeTests.testLib or null;
 
           # Create a check for each test suite
           mkTestCheck = name: testSuite:
@@ -480,18 +494,26 @@
           tests-types-module-types-nixos = mkTestCheck "types-module-types-nixos" (typesTests.unit.module-types-nixos or {});
           tests-types-module-types-home-manager = mkTestCheck "types-module-types-home-manager" (typesTests.unit.module-types-home-manager or {});
           tests-types-module-types-jm = mkTestCheck "types-module-types-jm" (typesTests.unit.module-types-jm or {});
+          tests-types-flake-types-standard = mkTestCheck "types-flake-types-standard" (typesTests.unit.flake-types-standard or {});
+          tests-types-flake-types-flake-parts = mkTestCheck "types-flake-types-flake-parts" (typesTests.unit.flake-types-flake-parts or {});
 
           # Types integration tests
           tests-types-schemas-validate = mkTestCheck "types-schemas-validate" (typesTests.integration.schemas-validate-outputs or {});
+          tests-types-schemas-validate-standard = mkTestCheck "types-schemas-validate-standard" (typesTests.integration.schemas-validate-standard-outputs or {});
           tests-types-schemas-reject = mkTestCheck "types-schemas-reject" (typesTests.integration.schemas-reject-invalid or {});
 
           # Types real-world tests
+          tests-types-standard-outputs-community = mkTestCheck "types-standard-outputs-community" (typesTests.real-world.standard-outputs-community or {});
           tests-types-nixos-community = mkTestCheck "types-nixos-community" (typesTests.real-world.nixos-community or {});
           tests-types-home-manager-community = mkTestCheck "types-home-manager-community" (typesTests.real-world.home-manager-community or {});
+          tests-types-nix-darwin-community = mkTestCheck "types-nix-darwin-community" (typesTests.real-world.nix-darwin-community or {});
           tests-types-dendrix-community = mkTestCheck "types-dendrix-community" (typesTests.real-world.dendrix-community or {});
           tests-types-typix-community = mkTestCheck "types-typix-community" (typesTests.real-world.typix-community or {});
           tests-types-jm-dogfood = mkTestCheck "types-jm-dogfood" (typesTests.real-world.jm-dogfood or {});
           tests-types-std-dogfood = mkTestCheck "types-std-dogfood" (typesTests.real-world.std-dogfood or {});
+
+          # Unitype tests
+          tests-unitype-ir = mkTestCheck "unitype-ir" ((cells.tests.${system}.unitype or {}).ir or {});
         };
 
         # Development shell
