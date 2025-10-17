@@ -27,16 +27,16 @@ in {
     # ...
   };
 
+  # Decoders - Convert from IR to specific types
+  decoders = {
+    dendrix = import ./decoders/dendrix.nix {lib = libWithUnitype;};
+    # nixos = import ./decoders/nixos.nix { lib = libWithUnitype; };
+    # iso = import ./decoders/iso.nix { lib = libWithUnitype; };
+    # ...
+  };
+
   # Transform engine (to be implemented)
   # transform = sourceType: targetType: value: result;
-
-  # Decoders (to be implemented)
-  # decoders = {
-  #   nixos = import ./decoders/nixos.nix { lib = libWithUnitype; };
-  #   dendrix = import ./decoders/dendrix.nix { lib = libWithUnitype; };
-  #   iso = import ./decoders/iso.nix { lib = libWithUnitype; };
-  #   # ...
-  # };
 
   # Registry (to be implemented)
   # registry = import ./registry/default.nix { inherit lib; };

@@ -30,4 +30,9 @@ in {
   encoders = {
     nixos = safeImport ./unitype/encoders/nixos.test.nix;
   };
+
+  # Decoder tests
+  decoders = {
+    dendrix = safeImport ./unitype/decoders/dendrix.test.nix;
+  };
 }
