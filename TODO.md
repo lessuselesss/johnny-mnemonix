@@ -276,6 +276,200 @@ typix = {
 
 ---
 
+### 8. `permanence` - Configuration Reconciliation for Impermanence
+
+**Purpose**: Reconciliation tool for impermanence configurations
+
+**Base Directory**: All configured base-dirs across all types
+
+**Problem Statement**:
+When using impermanence (ephemeral root/home), directories need explicit persistence rules. Manual directory creation creates drift between configuration and reality. This tool bridges that gap.
+
+**Features**:
+
+1. **Diff Engine**:
+   - Compare declared JD structure vs actual filesystem
+   - Detect new directories/files not in configuration
+   - Detect missing directories that should exist per config
+   - Detect structural mismatches (wrong names, levels, etc.)
+   - Report persistence status (ephemeral vs persisted)
+
+2. **Configuration Reconciliation**:
+   - Generate proposed config additions for new items
+   - Suggest removals for items no longer present
+   - Validate JD naming compliance of discovered items
+   - Parse existing directory names to infer JD structure
+   - Preserve user intent (non-destructive, proposal-based)
+
+3. **Impermanence Integration**:
+   - Understand persistence rules (what's ephemeral, what persists)
+   - Help maintain `environment.persistence` declarations
+   - Suggest which new items should be persisted
+   - Warn about conflicts with impermanence strategy
+   - Integrate with existing impermanence modules
+
+4. **Smart Suggestions**:
+   - Infer area/category/item from directory names
+   - Suggest JD-compliant names for non-compliant dirs
+   - Recommend where newly discovered items fit in hierarchy
+   - Learn from existing patterns in configuration
+
+**Example Configuration**:
+```nix
+permanence = {
+  enable = true;
+
+  # Which base directories to monitor
+  baseDirs = [
+    "$HOME/Documents"
+    "$HOME/Projects"
+    "$OFFICE"
+  ];
+
+  reconcile = {
+    # Propose configuration updates automatically
+    autoSuggest = true;
+
+    # Check JD naming compliance
+    validateJD = true;
+
+    # Integrate with impermanence config
+    checkPersistence = true;
+
+    # Output format for suggestions
+    outputFormat = "nix";  # or "json", "yaml", "interactive"
+  };
+
+  # Impermanence integration
+  impermanence = {
+    enable = true;
+
+    # Path to impermanence config
+    persistencePath = "/persist";
+
+    # Auto-suggest persistence rules
+    suggestPersistence = true;
+  };
+
+  # Actions to take on differences
+  actions = {
+    # Create missing directories
+    createMissing = false;  # Manual by default
+
+    # Remove orphaned config entries
+    pruneOrphaned = false;  # Manual by default
+
+    # Update config file
+    updateConfig = false;  # Always manual
+  };
+};
+```
+
+**Use Cases**:
+
+1. **Manual Creation Reconciliation**:
+   ```bash
+   # User creates: ~/Documents/30-39 Finance/30 Taxes/30.01 2024/
+   # Command: jd-reconcile
+   # Output:
+   #   Found new item: ~/Documents/30-39 Finance/30 Taxes/30.01 2024/
+   #   Suggested config addition:
+   #     areas."30-39 Finance".categories."30 Taxes".items."30.01" = {
+   #       name = "2024";
+   #       # ... suggested attributes
+   #     };
+   #   Persistence: NOT PERSISTED (ephemeral)
+   #   Suggest adding to: environment.persistence."/persist".directories
+   ```
+
+2. **Configuration Drift Detection**:
+   ```bash
+   # Config declares: 10.05 My-Project
+   # Filesystem has: 10.05 Old-Project-Name
+   # Command: jd-reconcile --check
+   # Output:
+   #   MISMATCH: 10.05
+   #     Config:     "My-Project"
+   #     Filesystem: "Old-Project-Name"
+   #   Suggest: Update config to match reality? [y/N]
+   ```
+
+3. **JD Compliance Validation**:
+   ```bash
+   # User creates: ~/Documents/random-folder/
+   # Command: jd-reconcile
+   # Output:
+   #   WARNING: Non-JD compliant directory: random-folder
+   #   Suggested JD names based on context:
+   #     - 90-99 Archive/90 Unsorted/90.01 Random-Folder
+   #     - 80-89 References/80 Misc/80.01 Random-Folder
+   #   Apply suggestion? [1/2/custom/skip]
+   ```
+
+4. **Impermanence Audit**:
+   ```bash
+   # Command: jd-reconcile --audit-persistence
+   # Output:
+   #   JD Structure Persistence Status:
+   #
+   #   10-19 Projects (✓ persisted)
+   #     10.01 Website (✓ persisted)
+   #     10.02 CLI-Tool (✗ EPHEMERAL) ← Recommend persisting?
+   #
+   #   20-29 Documents (✗ EPHEMERAL)
+   #     20.01 Notes (✗ EPHEMERAL) ← Recommend persisting?
+   ```
+
+**Implementation Details**:
+
+1. **Diff Algorithm**:
+   - Walk filesystem recursively within base-dirs
+   - Parse directory names using johnny-declarative-decimal library
+   - Compare parsed structure against declared configuration
+   - Generate diff report (additions, deletions, modifications)
+
+2. **Suggestion Engine**:
+   - Use identifiers/hierarchies from composition layer
+   - Validate discovered names using validators
+   - Infer level (area/category/item) from directory depth
+   - Generate Nix code for config additions
+
+3. **Impermanence Integration**:
+   - Parse `environment.persistence` or home-manager equivalents
+   - Cross-reference JD items with persistence rules
+   - Suggest additions to persistence configuration
+   - Detect conflicts (declared but not persisted, etc.)
+
+4. **CLI Interface**:
+   ```bash
+   jd-reconcile                  # Show diff
+   jd-reconcile --check          # Validate only (exit code)
+   jd-reconcile --suggest        # Generate config suggestions
+   jd-reconcile --apply          # Interactive application
+   jd-reconcile --audit-persistence  # Persistence status report
+   jd-reconcile --fix-names      # Suggest JD-compliant renames
+   ```
+
+**Integration with Configuration Types**:
+
+Works across all configuration types:
+- `home-manager`: Reconcile ~/Documents, ~/Projects
+- `jd-office`: Reconcile $OFFICE workspace
+- `hm-dirs`: Reconcile per-area base directories
+- `typix`: Reconcile Typst document directories
+
+**Risks & Considerations**:
+
+1. **Safety**: Never modify filesystem/config without explicit confirmation
+2. **Conflicts**: Handle cases where filesystem and config both exist but differ
+3. **Performance**: Efficiently scan large directory trees
+4. **Idempotency**: Running multiple times should produce same suggestions
+5. **False Positives**: Some non-JD directories might be intentional (git repos, etc.)
+
+**Timeline**: Phase 6 (After core types implemented)
+
+---
+
 ## 🏗️ Implementation Architecture
 
 ### Layer 4: Configuration Types (New)
@@ -290,7 +484,8 @@ nix/configuration-types/
 ├── home-manager.nix            # HM handler (wraps existing)
 ├── hm-dirs.nix                 # Directory structures handler
 ├── jd-office.nix               # Office workspace handler
-└── typix.nix                   # Typst documents handler
+├── typix.nix                   # Typst documents handler
+└── permanence.nix              # Config reconciliation & impermanence
 ```
 
 ### Type Definition Structure
@@ -422,6 +617,15 @@ nix/configuration-types/
 - `hm-dirs` (enhanced directory management)
 
 **Timeline**: Community-driven / as needed
+
+---
+
+### Phase 6: Advanced Features
+- `permanence` (configuration reconciliation & impermanence)
+- Smart indexing and cross-references
+- Multi-user / team support features
+
+**Timeline**: After core ecosystem stable
 
 ---
 
