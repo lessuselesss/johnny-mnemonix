@@ -13,9 +13,11 @@
 
 ### System Overview
 
-Johnny Declarative Decimal is a configurable Nix system for managing directory hierarchies using generalized decimal organizational methods. It provides a layered library architecture that supports everything from classic Johnny Decimal (2 octets, base 10, span of 10) to arbitrary numbering systems (mixed radix, custom alphabets, variable depth).
+Johnny Declarative Decimal is a **universal organizational system library** for Nix that provides primitives for creating any kind of hierarchical numbering/classification system. It supports everything from classic Johnny Decimal (2 octets, base 10, span of 10) to arbitrary numbering systems (mixed radix, custom alphabets, variable depth).
 
-**Evolution from Johnny-Mnemonix**: This project extends the original home-manager module with a full library layer, making the organizational system reusable beyond just directory management.
+**Key Insight**: `nix/lib/` contains **pure, domain-agnostic organizational primitives**. These primitives are then applied to specific domains (directories, NixOS modules, flake outputs, Typst documents, etc.) through frameworks and type definitions.
+
+**Evolution from Johnny-Mnemonix**: This project extends the original home-manager module with a full library layer, making the organizational system reusable for organizing ANY configuration or content, not just directories.
 
 ### Core User Stories
 
@@ -203,20 +205,33 @@ Parser (Pass 2)
 
 ```
 nix/
-├── lib/              # Cell: Library code
-│   ├── primitives.nix        # Block: Layer 1 exports
-│   ├── composition.nix       # Block: Layer 2 exports
-│   └── builders.nix          # Block: Layer 3 exports
-├── frameworks/       # Cell: Pre-built solutions
+├── lib/              # Cell: Pure organizational primitives (domain-agnostic)
+│   ├── primitives.nix        # Block: Layer 1 - atomic operations
+│   ├── composition.nix       # Block: Layer 2 - combining primitives
+│   ├── builders.nix          # Block: Layer 3 - high-level constructors
+│   ├── types.nix             # Block: Layer 4 - type system bridge
+│   ├── primitives/           # Implementation files for Layer 1
+│   ├── composition/          # Implementation files for Layer 2
+│   ├── builders/             # Implementation files for Layer 3
+│   └── types/                # Type definitions for common domains
+│       ├── modules/          # NixOS module option types (nixos, home-manager, typix, etc.)
+│       └── flakes/           # Flake type definitions (inputs + schemas)
+├── frameworks/       # Cell: Pre-built solutions applying lib to domains
 │   └── configs.nix           # Block: Framework definitions
 ├── config/           # Cell: System configuration
 │   └── modules.nix           # Block: 01.01-01.07 exports
 ├── tests/            # Cell: Test suites
 │   ├── unit.nix              # Block: Unit tests
-│   └── integration.nix       # Block: Integration tests
+│   ├── integration.nix       # Block: Integration tests
+│   └── types.nix             # Block: Type system tests
 └── examples/         # Cell: Example systems
     └── configs.nix           # Block: Example configurations
 ```
+
+**Critical Architecture Principle**:
+- `nix/lib/primitives|composition|builders/` = **Pure organizational logic** (no domain knowledge)
+- `nix/lib/types/` = **Type bridge** connecting primitives to real-world domains
+- `nix/frameworks/` = **Domain applications** using lib + types
 
 ### API Surface (Public Exports)
 
