@@ -45,6 +45,7 @@
 
   # Import all block types (std block definitions)
   blockTypes = {
+    std = import ./blocks/std.nix {inherit lib;};
     hive = import ./blocks/hive.nix {inherit lib;};
   };
 

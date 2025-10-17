@@ -39,6 +39,47 @@ This directory provides **std block type definitions** that specify:
 
 ## Files
 
+### `std.nix`
+**Purpose**: Standard divnix/std block types
+
+std provides 18 built-in block types organized by category:
+
+**Container & Orchestration**:
+- `arion` - Docker Compose management (up, ps, stop, rm, config)
+- `containers` - OCI images via nix2container (print-image, publish, load)
+- `microvms` - microvm.nix VMs (run, console)
+
+**Kubernetes & Scheduling**:
+- `kubectl` - Kubernetes manifests (render, diff, apply, explore)
+- `nomad` - Nomad jobs (render, deploy, explore)
+
+**Infrastructure as Code**:
+- `terra` - Terraform/Terranix (init, plan, apply, state, refresh, destroy)
+
+**Development**:
+- `devshells` - Dev environments (build, enter)
+
+**Executables & Packages**:
+- `runnables` - Executables (build, run)
+- `installables` - User profile packages (install, upgrade, remove, bundle)
+- `pkgs` - Custom nixpkgs (no CLI actions)
+
+**Configuration & Data**:
+- `nixago` - Dotfile management (populate, explore)
+- `data` - JSON data (write, explore)
+- `files` - Text files (explore via bat)
+
+**Testing**:
+- `namaka` - Snapshot testing (eval, check, review, clean)
+- `nixostests` - NixOS VM tests (run, audit-script, run-vm)
+
+**Package Management**:
+- `nvfetcher` - Source updates (fetch)
+
+**Generic**:
+- `functions` - Pure library code (no actions)
+- `anything` - Fallback type (no actions)
+
 ### `hive.nix`
 **Purpose**: Block types for divnix/hive deployments
 
