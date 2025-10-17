@@ -4,6 +4,7 @@
 # - moduleTypes: NixOS module option types for each flake class
 # - flakeTypes: Complete flake type definitions (inputs + schemas)
 # - blockTypes: std block type definitions (what blocks export + actions)
+# - packageTypes: Package configuration types for derivation builders
 
 {
   inputs,
@@ -49,6 +50,11 @@
     hive = import ./blocks/hive.nix {inherit lib;};
   };
 
+  # Import all package types (derivation configuration types)
+  packageTypes = {
+    typix = import ./packages/typix.nix {inherit lib;};
+  };
+
   # Aggregate all flake schemas for easy export
   allSchemas = lib.foldl' (acc: flakeType:
     acc // flakeType.schemas
@@ -68,6 +74,9 @@ in {
 
   # Export std block types (block definitions + actions)
   inherit blockTypes;
+
+  # Export package types (derivation configuration types)
+  inherit packageTypes;
 
   # Convenience: All schemas in one place
   schemas = allSchemas;

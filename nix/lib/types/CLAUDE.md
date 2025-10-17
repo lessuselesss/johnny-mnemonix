@@ -1,8 +1,8 @@
 # Types Layer - Johnny Declarative Decimal
 
 **Layer**: 4 (Types)
-**Purpose**: Complete flake type system with module types and output validation
-**Components**: `modules/`, `flakes/`, `types.nix`
+**Purpose**: Complete type system with module, flake, block, and package types
+**Components**: `modules/`, `flakes/`, `blocks/`, `packages/`, `types.nix`
 **Status**: ✅ Complete
 
 ---
@@ -14,11 +14,13 @@ The types layer provides a complete type system for Nix flakes, combining:
 1. **Module Types**: NixOS-style module option types for configuration
 2. **Flake Types**: Complete flake type definitions (input structure + output validation)
 3. **Block Types**: std block type definitions (export structure + CLI actions)
+4. **Package Types**: Package configuration types for derivation builders
 
 This enables:
 - Type-safe module development across different flake ecosystems
 - Automated validation of flake outputs via flake-schemas
 - std block organization with Johnny Decimal identifiers
+- Package configuration validation for tools like typix
 - Reusable type definitions for common patterns
 
 ---
@@ -54,14 +56,18 @@ nix/lib/types/
 │   ├── jm.nix                          # Johnny-Mnemonix flake type
 │   ├── std.nix                         # divnix/std flake type
 │   └── hive.nix                        # divnix/hive flake type
-└── blocks/                             # std block type definitions
-    ├── CLAUDE.md                       # Block types documentation
-    └── hive.nix                        # Hive block types (nixosConfigurations, etc.)
+├── blocks/                             # std block type definitions
+│   ├── CLAUDE.md                       # Block types documentation
+│   ├── std.nix                         # Standard std block types (18 types)
+│   └── hive.nix                        # Hive block types (nixosConfigurations, etc.)
+└── packages/                           # Package configuration types
+    ├── CLAUDE.md                       # Package types documentation
+    └── typix.nix                       # Typix package types
 ```
 
 ---
 
-## Three Type Categories
+## Four Type Categories
 
 ### Part 1: Module Types (`types/modules/`)
 
@@ -241,6 +247,65 @@ Each `blocks/<framework>.nix` file exports block type definitions:
 # And std provides CLI commands:
 # std //prod/hosts/10.01-web-server:switch
 # std //prod/hosts/10.01-web-server:build
+```
+
+### Part 4: Package Types (`types/packages/`)
+
+**Purpose**: Package configuration types for derivation builders
+
+**Used In**: Package definitions and derivation configuration validation
+
+**Documentation**: See `packages/CLAUDE.md`
+
+### Structure
+
+Each `packages/<tool>.nix` file exports configuration types:
+
+```nix
+{lib}: {
+  buildTypstProjectConfig = lib.types.submodule {
+    options = {
+      src = lib.mkOption { type = lib.types.path; };
+      typstSource = lib.mkOption { type = lib.types.str; default = "main.typ"; };
+      fontPaths = lib.mkOption { type = lib.types.listOf lib.types.path; };
+      # ... more options
+    };
+  };
+
+  mkTypstDerivationConfig = lib.types.submodule {
+    # Detailed configuration for mkTypstDerivation
+  };
+}
+```
+
+### Usage with Package Builders
+
+```nix
+let
+  packageTypes = inputs.johnny-dd.lib.${system}.types.packageTypes;
+
+  # Validate configuration
+  validateConfig = config:
+    lib.types.check packageTypes.typix.buildTypstProjectConfig config;
+
+in {
+  packages = {
+    # 10.01 - Thesis document
+    thesis = buildTypstProject {
+      src = ./documents/10.01-thesis;
+      typstSource = "main.typ";
+      name = "thesis";
+      fontPaths = [ ./fonts ];
+    };
+
+    # 20.01 - Research paper
+    paper = buildTypstProject {
+      src = ./documents/20.01-paper;
+      typstSource = "paper.typ";
+      name = "research-paper";
+    };
+  };
+}
 ```
 
 ---
@@ -447,10 +512,22 @@ cells.lib.${system}.types.schemas.nixosModules
 
   # All std block types
   blockTypes = {
+    std = { /* 18 standard block types */ };
     hive = {
       nixosConfigurations, darwinConfigurations,
       homeConfigurations, colmenaConfigurations,
       diskoConfigurations,
+    };
+  };
+
+  # All package configuration types
+  packageTypes = {
+    typix = {
+      buildTypstProjectConfig,
+      mkTypstDerivationConfig,
+      watchTypstProjectConfig,
+      typstPackage,
+      virtualPath,
     };
   };
 
@@ -497,6 +574,11 @@ Easy to add new types:
 1. Create or extend `blocks/<framework>.nix`
 2. Define block type with exports + actions
 3. Add to `types.nix` blockTypes export
+
+**For new package types**:
+1. Create `packages/<tool>.nix`
+2. Define configuration types for derivation builders
+3. Add to `types.nix` packageTypes export
 
 ---
 
