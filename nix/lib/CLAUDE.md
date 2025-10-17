@@ -1,8 +1,11 @@
 # Library Cell - Johnny Declarative Decimal
 
+> **Quick Reference**: See [README.md](./README.md) for usage guide, examples, quick start, and complete API documentation.
+
 **Cell Type**: `lib`
 **Purpose**: Core library implementation across 3 layers
 **Blocks**: `primitives.nix`, `composition.nix`, `builders.nix`
+**Status**: ✅ Complete (126/126 tests passing)
 
 ---
 
@@ -250,9 +253,12 @@ nixpkgs.lib + builtins
 
 ---
 
-## Next Steps
+## Related Documentation
 
-1. See `primitives/CLAUDE.md` for detailed Layer 1 spec
-2. See `composition/CLAUDE.md` for detailed Layer 2 spec
-3. See `builders/CLAUDE.md` for detailed Layer 3 spec
-4. Tests defined in `/nix/tests/<layer>/CLAUDE.md`
+- **Usage Guide & Examples**: See [README.md](./README.md) for comprehensive usage guide, API examples, and getting started
+- **Primitives Layer Details**: See `primitives/CLAUDE.md` for Layer 1 implementation specs
+- **Composition Layer Details**: See `composition/CLAUDE.md` for Layer 2 implementation specs
+- **Builders Layer Details**: See `builders/CLAUDE.md` for Layer 3 implementation specs
+- **Test Specifications**: See `../tests/README.md` for testing guide and running tests
+- **Project Overview**: See root `CLAUDE.md` for overall project structure
+- **Roadmap**: See root `TODO.md` for vision and future plans

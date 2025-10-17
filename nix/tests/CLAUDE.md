@@ -1,8 +1,11 @@
 # Tests Cell - Johnny Declarative Decimal
 
+> **Quick Reference**: See [README.md](./README.md) for testing guide, running tests, test development workflow, and TDD methodology.
+
 **Cell Type**: `tests`
 **Purpose**: Comprehensive test suite across all layers
 **Blocks**: `unit.nix`, `integration.nix`, `e2e.nix`
+**Status**: ✅ Unit tests complete (126/126), Integration & E2E pending
 
 ---
 
@@ -291,9 +294,18 @@ Run tests: **STILL PASSES** ✓
 
 ---
 
+## Related Documentation
+
+- **Testing Guide & Examples**: See [README.md](./README.md) for comprehensive testing guide, running tests, and TDD workflow
+- **Library Implementation**: See `../lib/README.md` for what's being tested
+- **Test Format**: See README.md for nixpkgs test format and conventions
+- **Project Overview**: See root `CLAUDE.md` for overall project structure
+
+---
+
 ## Next Steps
 
-1. Create test files in parallel with implementation
-2. Follow strict TDD: RED → GREEN → REFACTOR
-3. Maintain high coverage throughout development
-4. Run full test suite before commits
+1. Create integration tests (two-pass loading, self-validation)
+2. Create e2e tests (home-manager activation, real scenarios)
+3. Maintain TDD methodology for all new components
+4. Keep test coverage high (95%+ on critical paths)

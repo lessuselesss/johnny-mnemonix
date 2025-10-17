@@ -1,8 +1,11 @@
 # Examples Cell - Johnny Declarative Decimal
 
+> **Quick Reference**: See [README.md](./README.md) for example templates, usage guide, learning path, and complete working examples.
+
 **Cell Type**: `examples`
 **Purpose**: Real-world example systems and configurations
 **Blocks**: `configs.nix`
+**Status**: ⏳ Planned (specifications complete, awaiting library integration)
 
 ---
 

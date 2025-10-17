@@ -1,8 +1,11 @@
 # Frameworks Cell - Johnny Declarative Decimal
 
+> **Quick Reference**: See [README.md](./README.md) for framework usage, customization levels, and when to use frameworks vs library.
+
 **Cell Type**: `frameworks`
 **Purpose**: Pre-built, opinionated frameworks for common use cases
 **Blocks**: `configs.nix`
+**Status**: ⏳ Planned (specifications complete, implementation pending)
 
 ---
 
@@ -207,8 +210,20 @@ in {
 
 ---
 
+## Related Documentation
+
+- **Framework Usage Guide**: See [README.md](./README.md) for complete framework documentation, usage examples, and customization
+- **Library Documentation**: See `../lib/README.md` for underlying library that frameworks build upon
+- **Classic Framework Spec**: See `johnny-decimal-classic/CLAUDE.md` (when created) for detailed implementation
+- **Integration Tests**: See `../tests/README.md` for framework testing
+- **Project Overview**: See root `CLAUDE.md` for overall project structure
+
+---
+
 ## Next Steps
 
-1. See `johnny-decimal-classic/CLAUDE.md` for detailed classic framework spec
-2. See `/nix/tests/integration/CLAUDE.md` for framework integration tests
-3. Implement after lib cell is complete
+1. Complete library layer (✅ Complete - 126/126 tests)
+2. Implement johnny-decimal-classic framework
+3. Create framework integration tests
+4. Implement remaining frameworks (hex, extended, semver)
+5. Add template system for flake init

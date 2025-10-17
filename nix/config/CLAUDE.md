@@ -1,8 +1,11 @@
 # Config Cell - Johnny Declarative Decimal
 
+> **Quick Reference**: See [README.md](./README.md) for two-pass loading details, self-validation explanation, and configuration module specifications.
+
 **Cell Type**: `config`
 **Purpose**: System configuration modules (01.01-01.07)
 **Blocks**: `modules.nix`
+**Status**: ⏳ Planned (two-pass loading design complete, implementation pending)
 
 ---
 
@@ -162,9 +165,20 @@ testConfigExports = {
 
 ---
 
+## Related Documentation
+
+- **Configuration Guide**: See [README.md](./README.md) for two-pass loading algorithm, self-validation benefits, and module specs
+- **Library Documentation**: See `../lib/README.md` for library used by configuration modules
+- **Test Guide**: See `../tests/README.md` for two-pass loading tests
+- **Project Overview**: See root `CLAUDE.md` for overall project structure
+
+---
+
 ## Next Steps
 
-1. Implement two-pass loading in root flake.nix
-2. Move and rename config modules
-3. Update config modules to use library (once implemented)
-4. Add self-validation tests
+1. Complete library layer (✅ Complete - 126/126 tests)
+2. Implement two-pass loading in root flake.nix
+3. Create 01.01-01.07 configuration modules
+4. Implement self-validation algorithm
+5. Add integration tests for two-pass loading
+6. Performance optimization (< 5s target)
