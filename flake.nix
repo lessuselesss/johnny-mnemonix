@@ -36,6 +36,9 @@
     incl = {
       url = "github:divnix/incl";
     };
+    mission-control = {
+      url = "github:Platonic-Systems/mission-control";
+    };
   };
 
   outputs = inputs @ {flake-parts, ...}: let
@@ -373,7 +376,10 @@
       # Import user-defined modules from modules/ directory (all types)
       # Use fullPath which is already a proper Nix path
       imports =
-        map (m: m.path) allModuleFiles;
+        [
+          inputs.mission-control.flakeModule
+        ]
+        ++ (map (m: m.path) allModuleFiles);
 
       # Flake-wide outputs (not system-specific)
       flake = {
@@ -535,6 +541,156 @@
           tests-unitype-integration-transform-to-dendrix = mkTestCheck "unitype-integration-transform-to-dendrix" ((cells.tests.${system}.unitype or {}).integration.transformToDendrix or {});
         };
 
+        # Mission-control scripts - compose helpers for transformation workflows
+        mission-control.scripts = {
+          # Category: Transform - Compose call-flake + encoders + decoders
+          transform-to-dendrix = {
+            description = "Transform nixosConfiguration to dendrix aspect modules";
+            exec = ''
+              ${pkgs.nix}/bin/nix run .#transform-to-dendrix
+            '';
+            category = "Transform";
+          };
+
+          inspect-flake = {
+            description = "Inspect a flake's configurations";
+            exec = ''
+              if [ -z "$1" ]; then
+                echo "Usage: , inspect-flake <flake-url>"
+                echo "Example: , inspect-flake github:dustinlyons/nixos-config"
+                exit 1
+              fi
+              ${pkgs.nix}/bin/nix run .#inspect-flake -- "$1"
+            '';
+            category = "Inspect";
+          };
+
+          # Category: Extract - Use call-flake to extract configs
+          extract-nixos-configs = {
+            description = "List all nixosConfigurations from a flake";
+            exec = ''
+              if [ -z "$1" ]; then
+                echo "Usage: , extract-nixos-configs <flake-url>"
+                echo "Example: , extract-nixos-configs github:dustinlyons/nixos-config"
+                exit 1
+              fi
+              ${pkgs.nix}/bin/nix eval --json "$1#nixosConfigurations" \
+                --apply 'configs: builtins.attrNames configs' \
+                | ${pkgs.jq}/bin/jq -r '.[]'
+            '';
+            category = "Extract";
+          };
+
+          extract-config-details = {
+            description = "Extract detailed info about a specific configuration";
+            exec = ''
+              if [ -z "$1" ] || [ -z "$2" ]; then
+                echo "Usage: , extract-config-details <flake-url> <config-name>"
+                echo "Example: , extract-config-details github:dustinlyons/nixos-config garfield"
+                exit 1
+              fi
+              FLAKE="$1"
+              CONFIG="$2"
+              echo "Configuration: $CONFIG"
+              echo ""
+              echo "Hostname:"
+              ${pkgs.nix}/bin/nix eval --raw "$FLAKE#nixosConfigurations.$CONFIG.config.networking.hostName" 2>/dev/null || echo "unknown"
+              echo ""
+              echo "System:"
+              ${pkgs.nix}/bin/nix eval --raw "$FLAKE#nixosConfigurations.$CONFIG.config.nixpkgs.hostPlatform" 2>/dev/null || echo "unknown"
+            '';
+            category = "Extract";
+          };
+
+          # Category: Generate - Create aspect modules
+          generate-aspect-list = {
+            description = "Generate aspect list from a nixosConfiguration";
+            exec = ''
+              echo "Analyzing configuration for aspects..."
+              echo "This would classify modules by aspect (boot, networking, graphics, etc.)"
+              echo "Implementation: Use unitype encoder's aspect classification"
+            '';
+            category = "Generate";
+          };
+
+          # Category: Test - Test transformations
+          test-transformation = {
+            description = "Test transformation pipeline with mock data";
+            exec = ''
+              echo "Testing unitype transformation pipeline..."
+              ${pkgs.nix}/bin/nix eval --impure --expr '
+                let
+                  flake = builtins.getFlake "path:${toString ./.}";
+                  lib = flake.lib.x86_64-linux;
+
+                  testConfig = {
+                    system = "x86_64-linux";
+                    modules = [
+                      { networking.firewall.enable = true; }
+                      { boot.loader.systemd-boot.enable = true; }
+                    ];
+                  };
+
+                  ir = lib.unitype.encoders.nixos.encode "test" testConfig;
+                  dendrix = lib.unitype.decoders.dendrix.decode ir;
+                in
+                  builtins.attrNames dendrix
+              ' --json | ${pkgs.jq}/bin/jq -r '.[]'
+            '';
+            category = "Test";
+          };
+
+          # Category: Helpers - Documentation and utility
+          list-helpers = {
+            description = "List all available unitype helpers";
+            exec = ''
+              echo "Unitype Helpers Available:"
+              echo ""
+              echo "flake-utils:"
+              echo "  - mkMultiSystemOutputs: Transform IR for all systems"
+              echo "  - mkSystemOutputs: Transform IR for custom systems"
+              echo "  - mkAppFromIR: Create standardized apps"
+              echo ""
+              echo "flake-utils-plus:"
+              echo "  - mkFlakeFromIR: Generate complete flake"
+              echo "  - exportModulesFromIR: Organize modules"
+              echo "  - mkMultiChannelFlake: Handle stable+unstable"
+              echo ""
+              echo "call-flake:"
+              echo "  - extractNixosConfig: Get config from flake"
+              echo "  - extractHomeConfig: Get home config"
+              echo "  - extractAllConfigurations: Auto-detect all"
+              echo ""
+              echo "nosys:"
+              echo "  - mkSystemAgnosticFlake: Eliminate per-system boilerplate"
+              echo "  - irToNosysOutputs: Convert IR to nosys format"
+              echo ""
+              echo "incl:"
+              echo "  - filterSource: Include only specified paths"
+              echo "  - filterForAspects: Filter aspect modules"
+            '';
+            category = "Helpers";
+          };
+
+          # Category: Development
+          run-tests = {
+            description = "Run all unitype tests";
+            exec = ''
+              echo "Running unitype tests..."
+              ${pkgs.nix}/bin/nix flake check --print-build-logs --keep-going
+            '';
+            category = "Development";
+          };
+
+          fmt = {
+            description = "Format all Nix files";
+            exec = ''
+              ${pkgs.alejandra}/bin/alejandra .
+            '';
+            category = "Development";
+          };
+        };
+
         # Development shell
         devShells.default = pkgs.mkShell {
           buildInputs = with pkgs; [
@@ -543,9 +699,23 @@
             statix
             deadnix
             pre-commit
+            alejandra
+            jq
           ];
           shellHook = ''
             pre-commit install
+            echo ""
+            echo "Johnny Declarative Decimal Development Shell"
+            echo ""
+            echo "Transformation scripts available (prefix with comma):"
+            echo "  Transform: , transform-to-dendrix"
+            echo "  Inspect:   , inspect-flake <flake-url>"
+            echo "  Extract:   , extract-nixos-configs <flake-url>"
+            echo "  Test:      , test-transformation"
+            echo "  Helpers:   , list-helpers"
+            echo ""
+            echo "Development: , run-tests, , fmt"
+            echo ""
           '';
         };
       };
