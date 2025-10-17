@@ -167,7 +167,7 @@ Johnny Declarative Decimal is a configurable Nix system for managing directory h
 │ 2. Validate config modules against own syntax   │
 │ 3. Assert consistency or fail with error        │
 │ 4. Build jdModuleSources index                  │
-│ 5. Build jdAreasFromModules hierarchy           │
+│ 5. Build jdDefinitionsFromModules hierarchy     │
 │ 6. Export validated data                        │
 └────────┬─────────────────────────────────────────┘
          │
@@ -595,8 +595,8 @@ The project supports two types of flake-parts modules in `modules/`:
 1. `parseJDFilename`: Regex `\[(\d+)\.(\d+)\]\{([^}]+)\}__\((\d+) ([^)]+)\)__\[(\d+) ([^\]]+)\]`
 2. Extracts and validates all components
 3. Groups parsed modules by area-range → category → item
-4. Passes `jdAreasFromModules` to johnny-mnemonix via `_module.args`
-5. `mergedAreas = lib.recursiveUpdate jdAreasFromModules cfg.areas`
+4. Passes `jdDefinitionsFromModules` to johnny-mnemonix via `_module.args`
+5. `mergedAreas = lib.recursiveUpdate jdDefinitionsFromModules cfg.areas`
 
 **Example**:
 ```nix

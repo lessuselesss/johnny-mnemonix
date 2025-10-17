@@ -12,7 +12,7 @@
         {
           _module.args = {
             # Simulate the parsed JD module
-            jdAreasFromModules = {
+            jdDefinitionsFromModules = {
               "10-19" = {
                 name = "Projects";
                 categories = {

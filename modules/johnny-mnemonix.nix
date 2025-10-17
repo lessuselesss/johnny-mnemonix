@@ -4,7 +4,7 @@
   pkgs,
   typix ? null,
   managedPathNames ? [],
-  jdAreasFromModules ? {},
+  jdDefinitionsFromModules ? {},
   jdModuleSources ? {},
   jdSyntaxConfig ? null,
   ...
@@ -34,7 +34,7 @@ with lib; let
 
   # Merge module-generated areas with user-provided areas
   # User config takes precedence
-  mergedAreas = lib.recursiveUpdate jdAreasFromModules cfg.areas;
+  mergedAreas = lib.recursiveUpdate jdDefinitionsFromModules cfg.areas;
 
   # Expand managed path names to full paths
   managedPaths = map (name: "${config.home.homeDirectory}/${name}") managedPathNames;

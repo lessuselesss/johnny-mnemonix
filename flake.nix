@@ -275,9 +275,10 @@
     # For simple modules: extract managed path names (without .nix extension)
     managedPathNames = map (m: lib.removeSuffix ".nix" (baseNameOf m.path)) simpleModules;
 
-    # Build johnny-mnemonix areas configuration from parsed modules
+    # Build complete hierarchy definitions from parsed modules
+    # Contains areas, categories, AND items - not just areas!
     # Modules now include both flat and directory formats
-    jdAreasFromModules = let
+    jdDefinitionsFromModules = let
       # Group by area, then by category
       groupByArea = lib.foldl (acc: module:
         acc // {
@@ -321,11 +322,11 @@
       flake = {
         # Define the module
         homeManagerModules = let
-          # Wrap the main module to inject managedPathNames, jdAreasFromModules, jdModuleSources, and syntaxConfig
+          # Wrap the main module to inject managedPathNames, jdDefinitionsFromModules, jdModuleSources, and syntaxConfig
           wrappedModule = {
             _module.args = {
               managedPathNames = managedPathNames;
-              jdAreasFromModules = jdAreasFromModules;
+              jdDefinitionsFromModules = jdDefinitionsFromModules;
               jdModuleSources = jdModuleSources;
               jdSyntaxConfig = syntaxConfig;
             };
