@@ -1,5 +1,5 @@
 {
-  description = "A Nix home-manager module for managing directory structures";
+  description = "Johnny Declarative Decimal - A configurable Nix system for managing directory hierarchies using the Johnny Decimal organizational method";
 
   inputs = {
     flake-parts.url = "github:hercules-ci/flake-parts";
