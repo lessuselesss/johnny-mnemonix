@@ -3,9 +3,9 @@
 > **Quick Reference**: See [README.md](./README.md) for usage guide, examples, quick start, and complete API documentation.
 
 **Cell Type**: `lib`
-**Purpose**: Core library implementation across 3 layers
-**Blocks**: `primitives.nix`, `composition.nix`, `builders.nix`
-**Status**: ✅ Complete (126/126 tests passing)
+**Purpose**: Core library implementation across 4 layers
+**Blocks**: `primitives.nix`, `composition.nix`, `builders.nix`, `types.nix`
+**Status**: ✅ Complete (126/126 tests passing + types system)
 
 ---
 
@@ -13,7 +13,7 @@
 
 ### Cell Overview
 
-The `lib` cell contains the foundational library code for johnny-declarative-decimal. It is organized into three layers that build upon each other, following the principle of progressive abstraction.
+The `lib` cell contains the foundational library code for johnny-declarative-decimal. It is organized into four layers that build upon each other, following the principle of progressive abstraction.
 
 ### User Stories
 
@@ -259,6 +259,7 @@ nixpkgs.lib + builtins
 - **Primitives Layer Details**: See `primitives/CLAUDE.md` for Layer 1 implementation specs
 - **Composition Layer Details**: See `composition/CLAUDE.md` for Layer 2 implementation specs
 - **Builders Layer Details**: See `builders/CLAUDE.md` for Layer 3 implementation specs
+- **Types Layer Details**: See `types/CLAUDE.md` for Layer 4 complete type system
 - **Test Specifications**: See `../tests/README.md` for testing guide and running tests
 - **Project Overview**: See root `CLAUDE.md` for overall project structure
 - **Roadmap**: See root `TODO.md` for vision and future plans
