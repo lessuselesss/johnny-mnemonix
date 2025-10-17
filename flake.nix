@@ -207,7 +207,7 @@
         areaId = areaRange;
         inherit areaName;
         categoryId = catNum;
-        inherit categoryName;
+        categoryName = catName;
         itemId = "${catNum}.${itemNum}";
         inherit itemName;
         format = "directory";
@@ -217,51 +217,53 @@
       else {parsed = false;};
 
     # Recursively find all .nix files in a directory
-    findNixFiles = dir: let
+    # Returns paths relative to modules/ for use in parsing and imports
+    findNixFiles = baseDir: relPrefix: dir: let
       entries = if builtins.pathExists dir then builtins.readDir dir else {};
 
       processEntry = name: type: let
-        fullPath = "${dir}/${name}";
-        relPath = lib.removePrefix "modules/" fullPath;
+        fullPath = dir + "/${name}";
+        # Build relative path by concatenating relPrefix with name
+        newRelPath = if relPrefix == "" then name else "${relPrefix}/${name}";
       in
         if type == "directory"
-        then findNixFiles fullPath
+        then findNixFiles baseDir newRelPath fullPath
         else if type == "regular" && lib.hasSuffix ".nix" name
-        then [relPath]
+        then [{path = fullPath; relPath = newRelPath;}]
         else [];
     in
       lib.flatten (lib.mapAttrsToList processEntry entries);
 
     # Auto-discover all .nix modules recursively from modules/ directory
-    # Returns relative paths like: "test.nix" or "area/cat/item.nix"
+    # Returns list of {path, relPath} records
     allModuleFiles =
       if builtins.pathExists ./modules
       then
         builtins.filter
-        (path:
-          let filename = baseNameOf path;
+        (m:
+          let filename = baseNameOf m.relPath;
           in filename != "johnny-mnemonix.nix"
           && filename != "example-project.nix"
           && filename != "README.md")
-        (findNixFiles ./modules)
+        (findNixFiles ./modules "" ./modules)
       else [];
 
     # Unified module parsing: try both flat and directory formats
-    parseModule = path: let
+    parseModule = moduleFile: let
       # Extract just the filename for flat format
-      filename = baseNameOf path;
+      filename = baseNameOf moduleFile.relPath;
 
       # Try flat self-describing format first
       flatParse = parseJDFilename filename;
 
-      # If flat fails, try directory hierarchy format
-      dirParse = if !flatParse.parsed then parseJDDirectory path else {parsed = false;};
+      # If flat fails, try directory hierarchy format (use relPath for parsing)
+      dirParse = if !flatParse.parsed then parseJDDirectory moduleFile.relPath else {parsed = false;};
     in
       if flatParse.parsed
-      then flatParse // {inherit path; format = "flat";}
+      then flatParse // {path = moduleFile.relPath; fullPath = moduleFile.path; format = "flat";}
       else if dirParse.parsed
-      then dirParse // {inherit path; format = "directory";}
-      else {parsed = false; inherit path; format = "unknown";};
+      then dirParse // {path = moduleFile.relPath; fullPath = moduleFile.path; format = "directory";}
+      else {parsed = false; path = moduleFile.relPath; fullPath = moduleFile.path; format = "unknown";};
 
     # Parse all discovered modules
     allParsedModules = map parseModule allModuleFiles;
@@ -296,12 +298,12 @@
 
     # Build mapping of item IDs to their source module files
     # Tracks both flat and directory format modules
-    # Key format: "areaId.categoryId.itemId" -> { path = "..."; format = "flat"|"directory"; }
+    # Key format: "areaId.categoryId.itemId" -> { path = "...";  format = "flat"|"directory"; }
     jdModuleSources =
       lib.foldl (acc: module:
         acc // {
           "${module.areaId}.${module.categoryId}.${module.itemId}" = {
-            path = module.path;
+            path = module.path;  # Relative path like "[file].nix" or "area/cat/item.nix"
             format = module.format;
           };
         }
@@ -311,8 +313,9 @@
       systems = ["x86_64-linux" "aarch64-linux" "aarch64-darwin" "x86_64-darwin"];
 
       # Import user-defined modules from modules/ directory (all types)
+      # Use fullPath which is already a proper Nix path
       imports =
-        map (file: ./modules/${file}) allModuleFiles;
+        map (m: m.path) allModuleFiles;
 
       # Flake-wide outputs (not system-specific)
       flake = {
