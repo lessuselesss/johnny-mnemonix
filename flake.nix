@@ -516,6 +516,7 @@
           tests-unitype-ir = mkTestCheck "unitype-ir" ((cells.tests.${system}.unitype or {}).ir or {});
           tests-unitype-encoders-nixos = mkTestCheck "unitype-encoders-nixos" ((cells.tests.${system}.unitype or {}).encoders.nixos or {});
           tests-unitype-decoders-dendrix = mkTestCheck "unitype-decoders-dendrix" ((cells.tests.${system}.unitype or {}).decoders.dendrix or {});
+          tests-unitype-integration-transform-to-dendrix = mkTestCheck "unitype-integration-transform-to-dendrix" ((cells.tests.${system}.unitype or {}).integration.transformToDendrix or {});
         };
 
         # Development shell
