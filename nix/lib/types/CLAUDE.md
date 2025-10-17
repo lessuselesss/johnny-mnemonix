@@ -13,10 +13,12 @@ The types layer provides a complete type system for Nix flakes, combining:
 
 1. **Module Types**: NixOS-style module option types for configuration
 2. **Flake Types**: Complete flake type definitions (input structure + output validation)
+3. **Block Types**: std block type definitions (export structure + CLI actions)
 
 This enables:
 - Type-safe module development across different flake ecosystems
 - Automated validation of flake outputs via flake-schemas
+- std block organization with Johnny Decimal identifiers
 - Reusable type definitions for common patterns
 
 ---
@@ -28,35 +30,46 @@ nix/lib/types/
 ├── CLAUDE.md                           # This file
 ├── types.nix                           # Block export (divnix/std)
 ├── modules/                            # NixOS module option types
+│   ├── CLAUDE.md                       # Module types documentation
 │   ├── common.nix                      # Shared Johnny Decimal types
+│   ├── flake-parts.nix                 # flake-parts-specific types
 │   ├── nixos.nix                       # NixOS-specific types
 │   ├── home-manager.nix                # home-manager-specific types
-│   ├── nix-darwin.nix                  # nix-darwin-specific types
+│   ├── darwin.nix                      # nix-darwin-specific types
 │   ├── dendrix.nix                     # Dendrix-specific types
 │   ├── system-manager.nix              # system-manager-specific types
 │   ├── typix.nix                       # Typix-specific types
 │   ├── jm.nix                          # Johnny-Mnemonix types (dogfood)
 │   ├── std.nix                         # divnix/std-specific types
-│   └── hive.nix                        # divnix/hive-specific types
-└── flakes/                             # Complete flake type definitions
-    ├── nixos.nix                       # NixOS flake type
-    ├── home-manager.nix                # home-manager flake type
-    ├── darwin.nix                      # nix-darwin flake type
-    ├── dendrix.nix                     # Dendrix flake type
-    ├── system-manager.nix              # system-manager flake type
-    ├── typix.nix                       # Typix flake type
-    ├── jm.nix                          # Johnny-Mnemonix flake type
-    ├── std.nix                         # divnix/std flake type
-    └── hive.nix                        # divnix/hive flake type
+│   └── hive.nix                        # divnix/hive-specific types (+ bee types)
+├── flakes/                             # Complete flake type definitions
+│   ├── CLAUDE.md                       # Flake types documentation
+│   ├── flake-parts.nix                 # flake-parts flake type
+│   ├── nixos.nix                       # NixOS flake type
+│   ├── home-manager.nix                # home-manager flake type
+│   ├── darwin.nix                      # nix-darwin flake type
+│   ├── dendrix.nix                     # Dendrix flake type
+│   ├── system-manager.nix              # system-manager flake type
+│   ├── typix.nix                       # Typix flake type
+│   ├── jm.nix                          # Johnny-Mnemonix flake type
+│   ├── std.nix                         # divnix/std flake type
+│   └── hive.nix                        # divnix/hive flake type
+└── blocks/                             # std block type definitions
+    ├── CLAUDE.md                       # Block types documentation
+    └── hive.nix                        # Hive block types (nixosConfigurations, etc.)
 ```
 
 ---
 
-## Part 1: Module Types
+## Three Type Categories
 
-### Purpose
+### Part 1: Module Types (`types/modules/`)
 
-NixOS-style module option types (`lib.types.*`) for defining module options in each flake ecosystem.
+**Purpose**: NixOS-style module option types (`lib.types.*`) for defining module options
+
+**Used In**: `lib.mkOption { type = moduleTypes.nixos.systemService; }`
+
+**Documentation**: See `modules/CLAUDE.md`
 
 ### Structure
 
@@ -103,15 +116,13 @@ in {
 }
 ```
 
----
+### Part 2: Flake Types (`types/flakes/`)
 
-## Part 2: Flake Types
+**Purpose**: Complete flake type definitions (input structure + output schemas)
 
-### Purpose
+**Used In**: `flake.modules.<class>` and flake-schemas validation
 
-Complete flake type definitions combining:
-1. **Module Input Structure**: How to write modules (`flake.modules.<class>`)
-2. **Output Validation**: Schema validation for flake outputs (via flake-schemas)
+**Documentation**: See `flakes/CLAUDE.md`
 
 ### Structure
 
@@ -174,6 +185,62 @@ Each `flakes/<class>.nix` file exports:
     };
   };
 }
+```
+
+### Part 3: Block Types (`types/blocks/`)
+
+**Purpose**: std block type definitions (export structure + CLI actions)
+
+**Used In**: std cell/block definitions with `growOn` and CLI/TUI commands
+
+**Documentation**: See `blocks/CLAUDE.md`
+
+### Structure
+
+Each `blocks/<framework>.nix` file exports block type definitions:
+
+```nix
+{lib}: {
+  nixosConfigurations = {
+    name = "nixosConfigurations";
+    type = "nixosConfiguration";
+
+    # What the block exports
+    exports = lib.types.attrsOf (lib.types.submodule { /* ... */ });
+
+    # CLI actions available
+    actions = {
+      switch = "Deploy configuration and switch to it";
+      boot = "Deploy configuration, activate on next boot";
+      build = "Build system configuration";
+      # ...
+    };
+  };
+}
+```
+
+### Usage with std
+
+```nix
+# In a hive-based flake
+{
+  outputs = { std, hive, johnny-dd, ... }:
+    std.growOn {
+      cellsFrom = ./cells;
+      cellBlocks = [
+        (hive.blockTypes.nixosConfigurations "hosts")
+        (hive.blockTypes.homeConfigurations "users")
+      ];
+    };
+}
+
+# Now you can organize with Johnny Decimal:
+# cells/prod/hosts/10.01-web-server.nix
+# cells/staging/hosts/20.01-test-server.nix
+
+# And std provides CLI commands:
+# std //prod/hosts/10.01-web-server:switch
+# std //prod/hosts/10.01-web-server:build
 ```
 
 ---
@@ -378,6 +445,15 @@ cells.lib.${system}.types.schemas.nixosModules
     jm, std, hive,
   };
 
+  # All std block types
+  blockTypes = {
+    hive = {
+      nixosConfigurations, darwinConfigurations,
+      homeConfigurations, colmenaConfigurations,
+      diskoConfigurations,
+    };
+  };
+
   # Helpers
   schemasByCategory = { standard, custom };
   moduleInputsByCategory = { standard, custom };
@@ -410,10 +486,17 @@ Types compose naturally:
 
 ### 4. Extensibility
 
-Easy to add new flake types:
-1. Create `modules/<class>.nix`
-2. Create `flakes/<class>.nix`
+Easy to add new types:
+
+**For new flake ecosystems**:
+1. Create `modules/<class>.nix` (module option types)
+2. Create `flakes/<class>.nix` (flake input + schemas)
 3. Add to `types.nix` exports
+
+**For new std block types**:
+1. Create or extend `blocks/<framework>.nix`
+2. Define block type with exports + actions
+3. Add to `types.nix` blockTypes export
 
 ---
 

@@ -3,6 +3,7 @@
 # divnix/std block that exports the complete type system:
 # - moduleTypes: NixOS module option types for each flake class
 # - flakeTypes: Complete flake type definitions (inputs + schemas)
+# - blockTypes: std block type definitions (what blocks export + actions)
 
 {
   inputs,
@@ -42,6 +43,11 @@
     hive = import ./flakes/hive.nix {inherit lib;};
   };
 
+  # Import all block types (std block definitions)
+  blockTypes = {
+    hive = import ./blocks/hive.nix {inherit lib;};
+  };
+
   # Aggregate all flake schemas for easy export
   allSchemas = lib.foldl' (acc: flakeType:
     acc // flakeType.schemas
@@ -58,6 +64,9 @@ in {
 
   # Export complete flake types (inputs + schemas)
   inherit flakeTypes;
+
+  # Export std block types (block definitions + actions)
+  inherit blockTypes;
 
   # Convenience: All schemas in one place
   schemas = allSchemas;

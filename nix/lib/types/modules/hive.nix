@@ -4,6 +4,56 @@
 # Based on https://github.com/divnix/hive
 
 {lib}: {
+  # ===== Bee Configuration Types =====
+
+  # Bee configuration (config.bee namespace from hive's beeModule)
+  beeConfig = lib.types.submodule {
+    options = {
+      system = lib.mkOption {
+        type = lib.types.str;
+        description = "Host system architecture (e.g., x86_64-linux, aarch64-darwin)";
+        example = "x86_64-linux";
+      };
+
+      pkgs = lib.mkOption {
+        type = lib.types.raw;
+        description = "Instantiated nixpkgs for this bee";
+      };
+
+      home = lib.mkOption {
+        type = lib.types.raw;
+        description = "home-manager input for this bee";
+      };
+
+      darwin = lib.mkOption {
+        type = lib.types.nullOr lib.types.raw;
+        default = null;
+        description = "Optional nix-darwin input for macOS bees";
+      };
+
+      wsl = lib.mkOption {
+        type = lib.types.nullOr lib.types.raw;
+        default = null;
+        description = "Optional nixos-wsl input for WSL bees";
+      };
+    };
+  };
+
+  # Bee system type (alias for clarity)
+  beeSystem = lib.types.str;
+
+  # Bee pkgs type (nixpkgs instance)
+  beePkgs = lib.types.raw;
+
+  # Bee home input
+  beeHome = lib.types.raw;
+
+  # Optional bee darwin input
+  beeDarwin = lib.types.nullOr lib.types.raw;
+
+  # Optional bee wsl input
+  beeWsl = lib.types.nullOr lib.types.raw;
+
   # ===== Hive-Specific Types (std-based) =====
 
   # Hive cell (environment or functional grouping)
