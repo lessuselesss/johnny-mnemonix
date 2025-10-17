@@ -16,6 +16,27 @@
   libWithUnitype = lib // {
     unitype = unitype;
   };
+
+  # Helpers - Composable utilities from external libraries
+  # These are available to encoders/decoders via lib.unitype.helpers
+  helpers = {
+    # flake-utils integration (multi-system, mkApp, flattenTree)
+    # Note: These require flake-utils input to be available
+    # flake-utils = import ./helpers/flake-utils.nix {
+    #   inherit lib;
+    #   flake-utils = inputs.flake-utils;
+    # };
+
+    # flake-utils-plus integration (mkFlake, exportModules, channels)
+    # Note: These require flake-utils-plus input to be available
+    # flake-utils-plus = import ./helpers/flake-utils-plus.nix {
+    #   inherit lib;
+    #   flake-utils-plus = inputs.flake-utils-plus;
+    # };
+
+    # Helpers will be activated when encoders/decoders receive inputs
+    # For now, they're defined but not loaded to avoid requiring inputs
+  };
 in {
   # IR (Intermediate Representation) - The "Rosetta Stone"
   ir = unitype.ir;
@@ -34,6 +55,10 @@ in {
     # iso = import ./decoders/iso.nix { lib = libWithUnitype; };
     # ...
   };
+
+  # Helpers - Exported for encoder/decoder use
+  # Encoders/decoders can access via: lib.unitype.helpers.flakeUtils.*
+  inherit helpers;
 
   # Transform engine (to be implemented)
   # transform = sourceType: targetType: value: result;

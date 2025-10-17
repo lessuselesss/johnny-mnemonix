@@ -89,6 +89,121 @@ Unitype provides **universal type transformation** for all Nix configurations in
 - nixos-generators (for image format generation)
 - flake-parts, divnix/hive (for framework integration)
 
+### Composition Helpers
+
+Unitype includes a **helpers layer** that provides composable utilities from external libraries.
+These helpers are available to encoders/decoders via `lib.unitype.helpers.*`
+
+#### flake-utils Integration
+
+**Source**: [numtide/flake-utils](https://github.com/numtide/flake-utils)
+**Purpose**: Multi-system transformation and flake structure utilities
+
+**Available Helpers**:
+```nix
+lib.unitype.helpers.flakeUtils = {
+  # Transform IR to outputs for all default systems
+  mkMultiSystemOutputs = ir: decoder: perSystemOutputs;
+
+  # Transform IR to custom system set
+  mkSystemOutputs = systems: ir: decoder: perSystemOutputs;
+
+  # Standardize app creation from IR
+  mkAppFromIR = ir: { drv, exePath, ... }: app;
+
+  # Flatten nested package hierarchies
+  flattenPackages = packages: flatPackages;
+
+  # System references and lists
+  systems = { x86_64-linux, aarch64-linux, x86_64-darwin, aarch64-darwin };
+  defaultSystems = [ "x86_64-linux" "aarch64-linux" "x86_64-darwin" "aarch64-darwin" ];
+
+  # Merge sub-flakes
+  meld = lib.meld;
+};
+```
+
+**Use Cases**:
+- Ensure transformed flakes work across all systems
+- Create properly structured apps and packages
+- Handle multi-system perSystem outputs
+
+#### flake-utils-plus Integration
+
+**Source**: [gytis-ivaskevicius/flake-utils-plus](https://github.com/gytis-ivaskevicius/flake-utils-plus)
+**Purpose**: Structured flake construction with channel management
+
+**Available Helpers**:
+```nix
+lib.unitype.helpers.flakeUtilsPlus = {
+  # Create complete flake from IR using mkFlake
+  mkFlakeFromIR = ir: { channels, hostDefaults, overlays, ... }: flake;
+
+  # Export modules from IR
+  exportModulesFromIR = ir: moduleFiles: moduleAttrs;
+
+  # Export overlays from IR
+  exportOverlaysFromIR = ir: overlayFiles: overlayAttrs;
+
+  # Export packages from overlays
+  exportPackagesFromIR = ir: channels: packages;
+
+  # Multi-channel transformations (stable + unstable)
+  mkMultiChannelFlake = ir: { channels, ... }: flake;
+
+  # Host configuration from IR
+  mkHostFromIR = ir: extraConfig: hostConfig;
+
+  # Channel configuration from IR
+  mkChannelConfigFromIR = ir: channelName: channelConfig;
+
+  # Full API access
+  lib = flake-utils-plus.lib;
+};
+```
+
+**Use Cases**:
+- Generate polished output flakes with proper structure
+- Handle multi-channel transformations (stable + unstable nixpkgs)
+- Organize modules and overlays systematically
+- Create host configurations from IR
+
+#### External Tools (Non-Library)
+
+**inspect** ([DeterminateSystems/inspect](https://github.com/DeterminateSystems/inspect))
+- Analyzes flake outputs using flake schemas
+- Fast mode: Structure without derivation evaluation
+- Comprehensive mode: Full derivation paths and metadata
+- **Use in unitype**: Extract real config data from target flakes for encoding
+
+```bash
+# Example: Extract config structure from target flake
+nix eval --json 'github:user/config#contents.excludingOutputPaths' \
+  | jq '.inventory."x86_64-linux".nixosConfigurations'
+```
+
+**flake-iter** ([DeterminateSystems/flake-iter](https://github.com/DeterminateSystems/flake-iter))
+- CLI tool for batch building flake outputs
+- Auto-discovers all derivations
+- Maps systems to GitHub Actions runners
+- **Use in unitype**: CI/CD integration for testing transformed flakes
+
+#### Helper Composition Pattern
+
+Helpers are **lazily loaded** - they're only activated when encoders/decoders need them:
+
+```nix
+# Example: Decoder using flake-utils helper
+{ lib }: {
+  decode = ir:
+    let
+      # Access helper from lib.unitype
+      mkMultiSystem = lib.unitype.helpers.flakeUtils.mkMultiSystemOutputs;
+    in
+      mkMultiSystem ir (decoder: /* transform IR to outputs */);
+}
+```
+
 ### Constraints
 
 1. **Performance**: Transform 100 configs in <30 seconds
