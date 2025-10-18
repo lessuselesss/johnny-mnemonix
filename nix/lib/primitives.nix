@@ -24,4 +24,9 @@
   templates = import ./primitives/templates.nix {
     inherit (inputs.nixpkgs) lib;
   };
+
+  # Numeral-name patterns (formatting conventions for identifiers)
+  numeralNamePatterns = import ./primitives/numeral-name-patterns.nix {
+    inherit (inputs.nixpkgs) lib;
+  };
 }
